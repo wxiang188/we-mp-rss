@@ -15,7 +15,8 @@
         </a-page-header>
 
         <a-card style="border:0">
-          <div class="search-bar">
+          <div class="search-bar" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear />
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear />
           </div>
@@ -120,6 +121,7 @@ const mpLoading = ref(false)
 const activeMpId = ref('')
 const searchText = ref('')
 const mpListVisible = ref(false)
+const dateRange = ref([])
 
 const pagination = ref({
   current: 1,
@@ -158,7 +160,9 @@ const fetchArticles = async (isLoadMore = false) => {
       page: isLoadMore ? pagination.value.current : 0,
       pageSize: pagination.value.pageSize,
       search: searchText.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      start_date: dateRange.value?.[0] || undefined,
+      end_date: dateRange.value?.[1] || undefined
     })
 
     if (isLoadMore) {

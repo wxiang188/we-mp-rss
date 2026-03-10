@@ -149,9 +149,10 @@
 
         <a-card style="border:0">
           <a-alert type="success" closable>{{ activeFeed?.mp_intro || "请选择一个公众号码进行管理,搜索文章后再点击订阅会有惊喜哟！！！" }}</a-alert>
-          <div class="search-bar">
+          <div class="search-bar" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+            <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear />
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
-              allow-clear />
+              allow-clear style="width: 300px" />
           </div>
           <a-table :columns="columns" :data="articles" :loading="loading" :pagination="pagination" :row-selection="{
             type: 'checkbox',
@@ -253,6 +254,7 @@ const mpFilterType = ref('active') // 'active' | 'disabled' | 'all'
 const searchText = ref('')
 const filterStatus = ref('')
 const mpSearchText = ref('')
+const dateRange = ref([])
 
 const pagination = ref({
   current: 1,
@@ -394,7 +396,9 @@ const fetchArticles = async () => {
       pageSize: pagination.value.pageSize,
       search: searchText.value,
       status: filterStatus.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      start_date: dateRange.value?.[0],
+      end_date: dateRange.value?.[1]
     })
 
     const res = await getArticles({
@@ -402,7 +406,9 @@ const fetchArticles = async () => {
       pageSize: pagination.value.pageSize,
       search: searchText.value,
       status: filterStatus.value,
-      mp_id: activeMpId.value
+      mp_id: activeMpId.value,
+      start_date: dateRange.value?.[0] || undefined,
+      end_date: dateRange.value?.[1] || undefined
     })
 
     // 确保数据包含必要字段

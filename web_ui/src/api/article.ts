@@ -38,6 +38,8 @@ export interface ArticleListParams {
   search?: string
   status?: number
   mp_id?: string
+  start_date?: string
+  end_date?: string
 }
 
 /**
@@ -62,7 +64,9 @@ export const getArticles = (params: ArticleListParams) => {
     limit: params.pageSize || 10,
     search: params.search,
     status: params.status,
-    mp_id: params.mp_id
+    mp_id: params.mp_id,
+    start_date: params.start_date,
+    end_date: params.end_date
   }
   return http.get<ArticleListResult>('/wx/articles', { 
     params: apiParams 
