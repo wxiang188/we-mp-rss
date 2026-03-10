@@ -48,8 +48,8 @@
                           >
                             <strong>{{ item.title }}</strong>
                           </a-typography-text>
-                          <div v-if="item.ai_category && item.ai_category !== '其他'" style="margin-top:2px;">
-                            <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : 'orange'" size="small">
+                          <div v-if="item.ai_category" style="margin-top:2px;">
+                            <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : (item.ai_category === '运营活动宣传' ? 'orange' : 'gray')" size="small">
                               {{ item.ai_category }}
                             </a-tag>
                             <span style="font-size:12px; color:var(--color-text-3); margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; max-width:80%; vertical-align:middle;">

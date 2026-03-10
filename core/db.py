@@ -51,6 +51,22 @@ class Db:
                                      connect_args={"check_same_thread": False} if con_str.startswith('sqlite:///') else {}
                                      )
             self.session_factory=self.get_session_factory()
+            
+            # 自动升级 SQLite 表结构 (追加 ai_category 和 ai_summary 字段)
+            try:
+                from sqlalchemy import inspect, text
+                inspector = inspect(self.engine)
+                if 'articles' in inspector.get_table_names():
+                    columns = [col['name'] for col in inspector.get_columns('articles')]
+                    with self.engine.begin() as conn:
+                        if 'ai_category' not in columns:
+                            conn.execute(text("ALTER TABLE articles ADD COLUMN ai_category VARCHAR(50) DEFAULT '其他'"))
+                            print_success("Auto-migrated: added ai_category to articles table")
+                        if 'ai_summary' not in columns:
+                            conn.execute(text("ALTER TABLE articles ADD COLUMN ai_summary VARCHAR(500) DEFAULT ''"))
+                            print_success("Auto-migrated: added ai_summary to articles table")
+            except Exception as migrate_e:
+                print_error(f"Migration error: {migrate_e}")
         except Exception as e:
             print(f"Error creating database connection: {e}")
             raise
@@ -59,20 +75,6 @@ class Db:
         from core.models.base import Base as B # 导入所有模型
         try:
             B.metadata.create_all(self.engine)
-            
-            # 自动升级 SQLite 表结构 (追加 ai_category 和 ai_summary 字段)
-            from sqlalchemy import inspect, text
-            inspector = inspect(self.engine)
-            if 'articles' in inspector.get_table_names():
-                columns = [col['name'] for col in inspector.get_columns('articles')]
-                with self.engine.begin() as conn:
-                    if 'ai_category' not in columns:
-                        conn.execute(text("ALTER TABLE articles ADD COLUMN ai_category VARCHAR(50) DEFAULT '其他'"))
-                        print_success("Auto-migrated: added ai_category to articles table")
-                    if 'ai_summary' not in columns:
-                        conn.execute(text("ALTER TABLE articles ADD COLUMN ai_summary VARCHAR(500) DEFAULT ''"))
-                        print_success("Auto-migrated: added ai_summary to articles table")
-
         except Exception as e:
             print_error(f"Error creating tables: {e}")
 

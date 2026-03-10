@@ -315,10 +315,10 @@ const columns = [
     width: window.innerWidth - 1100,
     ellipsis: true,
     render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
-      record.ai_category && record.ai_category !== '其他' ? h('span', {
+      record.ai_category ? h('span', {
         style: {
-          backgroundColor: record.ai_category === '便民服务宣传' ? 'var(--color-success-light-1)' : 'var(--color-warning-light-1)',
-          color: record.ai_category === '便民服务宣传' ? 'var(--color-success-6)' : 'var(--color-warning-6)',
+          backgroundColor: record.ai_category === '便民服务宣传' ? 'var(--color-success-light-1)' : (record.ai_category === '运营活动宣传' ? 'var(--color-warning-light-1)' : 'var(--color-fill-3)'),
+          color: record.ai_category === '便民服务宣传' ? 'var(--color-success-6)' : (record.ai_category === '运营活动宣传' ? 'var(--color-warning-6)' : 'var(--color-text-3)'),
           padding: '2px 6px',
           borderRadius: '4px',
           fontSize: '11px',
