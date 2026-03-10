@@ -59,6 +59,20 @@ class Db:
         from core.models.base import Base as B # 导入所有模型
         try:
             B.metadata.create_all(self.engine)
+            
+            # 自动升级 SQLite 表结构 (追加 ai_category 和 ai_summary 字段)
+            from sqlalchemy import inspect, text
+            inspector = inspect(self.engine)
+            if 'articles' in inspector.get_table_names():
+                columns = [col['name'] for col in inspector.get_columns('articles')]
+                with self.engine.begin() as conn:
+                    if 'ai_category' not in columns:
+                        conn.execute(text("ALTER TABLE articles ADD COLUMN ai_category VARCHAR(50) DEFAULT '其他'"))
+                        print_success("Auto-migrated: added ai_category to articles table")
+                    if 'ai_summary' not in columns:
+                        conn.execute(text("ALTER TABLE articles ADD COLUMN ai_summary VARCHAR(500) DEFAULT ''"))
+                        print_success("Auto-migrated: added ai_summary to articles table")
+
         except Exception as e:
             print_error(f"Error creating tables: {e}")
 
@@ -171,6 +185,18 @@ class Db:
                 art.content_html = fix_html(art.content)
             from core.models.base import DATA_STATUS
             art.status=DATA_STATUS.ACTIVE
+            
+            # --- AI 文章分类打标 ---
+            if not getattr(art, 'ai_category', None) or art.ai_category == '其他':
+                try:
+                    from core.ai import analyze_article
+                    ai_res = analyze_article(art.title, art.content_html or art.content or art.description)
+                    art.ai_category = ai_res.get('category', '其他')
+                    art.ai_summary = ai_res.get('summary', '')
+                except Exception as ai_e:
+                    print_warning(f"AI Category analysis failed for article {art.id}: {ai_e}")
+            # ---------------------
+
             session.add(art)
             # self._session.merge(art)
             sta=session.commit()

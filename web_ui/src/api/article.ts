@@ -22,6 +22,8 @@ export interface Article {
   link: string
   created_at: string
   is_read?: number
+  ai_category?: string
+  ai_summary?: string
 }
 
 /**
@@ -40,6 +42,7 @@ export interface ArticleListParams {
   mp_id?: string
   start_date?: string
   end_date?: string
+  ai_category?: string
 }
 
 /**
@@ -66,10 +69,11 @@ export const getArticles = (params: ArticleListParams) => {
     status: params.status,
     mp_id: params.mp_id,
     start_date: params.start_date,
-    end_date: params.end_date
+    end_date: params.end_date,
+    ai_category: params.ai_category
   }
-  return http.get<ArticleListResult>('/wx/articles', { 
-    params: apiParams 
+  return http.get<ArticleListResult>('/wx/articles', {
+    params: apiParams
   })
 }
 
@@ -79,15 +83,15 @@ export const getArticles = (params: ArticleListParams) => {
  * @parama 类型 0当前,-1上一篇,1下一篇
  * @returns 文章详情结果
  */
-export const getArticleDetail = (id: number,action_type:number) => {
-  switch(action_type){
+export const getArticleDetail = (id: number, action_type: number) => {
+  switch (action_type) {
     case -1:
-      return http.get<{code: number, data: Article}>(`/wx/articles/${id}/prev`)
+      return http.get<{ code: number, data: Article }>(`/wx/articles/${id}/prev`)
     case 1:
-      return http.get<{code: number, data: Article}>(`/wx/articles/${id}/next`)
+      return http.get<{ code: number, data: Article }>(`/wx/articles/${id}/next`)
     default:
       // 默认获取当前文章详情
-      return http.get<{code: number, data: Article}>(`/wx/articles/${id}`)
+      return http.get<{ code: number, data: Article }>(`/wx/articles/${id}`)
       break
   }
 }
@@ -98,7 +102,7 @@ export const getArticleDetail = (id: number,action_type:number) => {
  * @returns 上一篇文章详情结果
  */
 export const getPrevArticleDetail = (id: number) => {
-  return http.get<{code: number, data: Article}>(`/wx/articles/${id}/prev`)
+  return http.get<{ code: number, data: Article }>(`/wx/articles/${id}/prev`)
 }
 
 /**
@@ -107,7 +111,7 @@ export const getPrevArticleDetail = (id: number) => {
  * @returns 下一篇文章详情结果
  */
 export const getNextArticleDetail = (id: number) => {
-  return http.get<{code: number, data: Article}>(`/wx/articles/${id}/next`)
+  return http.get<{ code: number, data: Article }>(`/wx/articles/${id}/next`)
 }
 
 /**
@@ -116,7 +120,7 @@ export const getNextArticleDetail = (id: number) => {
  * @returns 删除结果
  */
 export const deleteArticle = (id: number) => {
-  return http.delete<{code: number, message: string}>(`/wx/articles/${id}`)
+  return http.delete<{ code: number, message: string }>(`/wx/articles/${id}`)
 }
 
 /**
@@ -125,7 +129,7 @@ export const deleteArticle = (id: number) => {
  * @returns 清空结果
  */
 export const ClearArticle = (id: number) => {
-  return http.delete<{code: number, message: string}>(`/wx/articles/clean`)
+  return http.delete<{ code: number, message: string }>(`/wx/articles/clean`)
 }
 
 /**
@@ -134,7 +138,7 @@ export const ClearArticle = (id: number) => {
  * @returns 清空结果
  */
 export const ClearDuplicateArticle = (id: number) => {
-  return http.delete<{code: number, message: string}>(`/wx/articles/clean_duplicate_articles`)
+  return http.delete<{ code: number, message: string }>(`/wx/articles/clean_duplicate_articles`)
 }
 
 /**
@@ -144,7 +148,7 @@ export const ClearDuplicateArticle = (id: number) => {
  * @returns 操作结果
  */
 export const toggleArticleReadStatus = (id: number, is_read: boolean) => {
-  return http.put<{code: number, message: string, is_read: boolean}>(`/wx/articles/${id}/read`, null, {
+  return http.put<{ code: number, message: string, is_read: boolean }>(`/wx/articles/${id}/read`, null, {
     params: { is_read }
   })
 }

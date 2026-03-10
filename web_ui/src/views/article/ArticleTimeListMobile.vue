@@ -17,6 +17,11 @@
         <a-card style="border:0">
           <div class="search-bar" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
             <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
+            <a-select v-model="aiCategory" style="width: 100%" placeholder="AI 分类" allow-clear @change="handleSearch">
+              <a-option value="便民服务宣传">便民服务宣传</a-option>
+              <a-option value="运营活动宣传">运营活动宣传</a-option>
+              <a-option value="其他">其他</a-option>
+            </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear />
           </div>
@@ -30,7 +35,17 @@
                     <span class="time-part">{{ formatTime(item.created_at) }}</span>
                     <span class="date-part">{{ formatDate(item.created_at) }}</span>
                   </span>
-                  <a-typography-text strong :heading="1"><strong>{{ item.title }}</strong></a-typography-text>
+                  <div style="display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;">
+                    <a-typography-text strong :heading="1"><strong>{{ item.title }}</strong></a-typography-text>
+                    <div v-if="item.ai_category && item.ai_category !== '其他'" style="margin-top:2px;">
+                      <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : 'orange'" size="small">
+                        {{ item.ai_category }}
+                      </a-tag>
+                      <span style="font-size:12px; color:var(--color-text-3); margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; max-width:80%; vertical-align:middle;">
+                        {{ item.ai_summary }}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <a-typography-text strong :heading="2" @click="viewArticle(item)">{{ item.mp_name || '未知公众号'
                   }}</a-typography-text>
@@ -122,6 +137,7 @@ const activeMpId = ref('')
 const searchText = ref('')
 const mpListVisible = ref(false)
 const dateRange = ref([])
+const aiCategory = ref('')
 
 const pagination = ref({
   current: 1,
@@ -162,7 +178,8 @@ const fetchArticles = async (isLoadMore = false) => {
       search: searchText.value,
       mp_id: activeMpId.value,
       start_date: dateRange.value?.[0] || undefined,
-      end_date: dateRange.value?.[1] || undefined
+      end_date: dateRange.value?.[1] || undefined,
+      ai_category: aiCategory.value || undefined
     })
 
     if (isLoadMore) {

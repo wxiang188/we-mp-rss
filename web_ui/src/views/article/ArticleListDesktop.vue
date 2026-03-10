@@ -151,8 +151,13 @@
           <a-alert type="success" closable>{{ activeFeed?.mp_intro || "请选择一个公众号码进行管理,搜索文章后再点击订阅会有惊喜哟！！！" }}</a-alert>
           <div class="search-bar" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
             <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
+            <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
+              <a-option value="便民服务宣传">便民服务宣传</a-option>
+              <a-option value="运营活动宣传">运营活动宣传</a-option>
+              <a-option value="其他">其他</a-option>
+            </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
-              allow-clear style="width: 300px" />
+              allow-clear style="width: 240px" />
           </div>
           <a-table :columns="columns" :data="articles" :loading="loading" :pagination="pagination" :row-selection="{
             type: 'checkbox',
@@ -255,6 +260,7 @@ const searchText = ref('')
 const filterStatus = ref('')
 const mpSearchText = ref('')
 const dateRange = ref([])
+const aiCategory = ref('')
 
 const pagination = ref({
   current: 1,
@@ -308,16 +314,33 @@ const columns = [
     dataIndex: 'title',
     width: window.innerWidth - 1100,
     ellipsis: true,
-    render: ({ record }) => h('a', {
-      href: issourceUrl.value ? record.url || '#' : "/views/article/" + record.id,
-      title: record.title,
-      target: '_blank',
-      style: { 
-        color: 'var(--color-text-1)',
-        textDecoration: record.is_read === 1 ? 'line-through' : 'none',
-        opacity: record.is_read === 1 ? 0.7 : 1
-      }
-    }, record.title)
+    render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
+      record.ai_category && record.ai_category !== '其他' ? h('span', {
+        style: {
+          backgroundColor: record.ai_category === '便民服务宣传' ? 'var(--color-success-light-1)' : 'var(--color-warning-light-1)',
+          color: record.ai_category === '便民服务宣传' ? 'var(--color-success-6)' : 'var(--color-warning-6)',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontSize: '11px',
+          whiteSpace: 'nowrap',
+          cursor: 'help'
+        },
+        title: record.ai_summary || record.ai_category
+      }, record.ai_category) : null,
+      h('a', {
+        href: issourceUrl.value ? record.url || '#' : "/views/article/" + record.id,
+        title: record.title,
+        target: '_blank',
+        style: { 
+          color: 'var(--color-text-1)',
+          textDecoration: record.is_read === 1 ? 'line-through' : 'none',
+          opacity: record.is_read === 1 ? 0.7 : 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }
+      }, record.title)
+    ])
   },
   {
     title: '公众号',
@@ -398,7 +421,8 @@ const fetchArticles = async () => {
       status: filterStatus.value,
       mp_id: activeMpId.value,
       start_date: dateRange.value?.[0],
-      end_date: dateRange.value?.[1]
+      end_date: dateRange.value?.[1],
+      ai_category: aiCategory.value || undefined
     })
 
     const res = await getArticles({
@@ -408,7 +432,8 @@ const fetchArticles = async () => {
       status: filterStatus.value,
       mp_id: activeMpId.value,
       start_date: dateRange.value?.[0] || undefined,
-      end_date: dateRange.value?.[1] || undefined
+      end_date: dateRange.value?.[1] || undefined,
+      ai_category: aiCategory.value || undefined
     })
 
     // 确保数据包含必要字段

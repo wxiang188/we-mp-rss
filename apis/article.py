@@ -129,6 +129,7 @@ async def get_articles(
     has_content:bool=Query(False),
     start_date: str = Query(None, description="发布开始日期 (格式: YYYY-MM-DD)"),
     end_date: str = Query(None, description="发布结束日期 (格式: YYYY-MM-DD)"),
+    ai_category: str = Query(None, description="AI文章分类"),
     current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
@@ -145,6 +146,8 @@ async def get_articles(
             query = query.filter(Article.status != DATA_STATUS.DELETED)
         if mp_id:
             query = query.filter(Article.mp_id == mp_id)
+        if ai_category:
+            query = query.filter(Article.ai_category == ai_category)
         if search:
             query = query.filter(
                format_search_kw(search)
