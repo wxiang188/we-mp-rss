@@ -127,6 +127,8 @@ async def get_articles(
     search: str = Query(None),
     mp_id: str = Query(None),
     has_content:bool=Query(False),
+    start_date: str = Query(None, description="发布开始日期 (格式: YYYY-MM-DD)"),
+    end_date: str = Query(None, description="发布结束日期 (格式: YYYY-MM-DD)"),
     current_user: dict = Depends(get_current_user_or_ak)
 ):
     session = DB.get_session()
@@ -147,6 +149,10 @@ async def get_articles(
             query = query.filter(
                format_search_kw(search)
             )
+        if start_date:
+            query = query.filter(Article.publish_time >= f"{start_date} 00:00:00")
+        if end_date:
+            query = query.filter(Article.publish_time <= f"{end_date} 23:59:59")
         
         # 获取总数
         total = query.count()
