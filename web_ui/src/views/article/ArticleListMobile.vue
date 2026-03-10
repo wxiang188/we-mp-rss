@@ -17,7 +17,7 @@
 
         <a-card style="border:0">
           <div class="search-bar" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
-            <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear />
+            <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch" allow-clear />
           </div>
 

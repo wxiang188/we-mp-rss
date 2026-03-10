@@ -150,7 +150,7 @@
         <a-card style="border:0">
           <a-alert type="success" closable>{{ activeFeed?.mp_intro || "请选择一个公众号码进行管理,搜索文章后再点击订阅会有惊喜哟！！！" }}</a-alert>
           <div class="search-bar" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
-            <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear />
+            <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear style="width: 300px" />
           </div>
