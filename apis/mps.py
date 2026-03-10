@@ -289,6 +289,11 @@ async def delete_mp(
                 )
             )
         
+        from core.models.article import Article
+        
+        # 顺便清理所有隶属于该公众号的历史文章
+        session.query(Article).filter(Article.mp_id == mp_id).delete(synchronize_session=False)
+        
         session.delete(mp)
         session.commit()
         return success_response({
