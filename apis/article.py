@@ -179,13 +179,15 @@ async def get_articles(
         # 打印生成的 SQL 语句（包含分页参数）
         print_warning(query.statement.compile(compile_kwargs={"literal_binds": True}))
                        
-        # 查询公众号名称
+        # 提取当前页面的所有的 mp_id
+        current_mp_ids = list(set([article.mp_id for article in articles if article.mp_id]))
+        
+        # 查询公众号名称 (批量查询，避免 N+1 性能问题)
         from core.models.feed import Feed
         mp_names = {}
-        for article in articles:
-            if article.mp_id and article.mp_id not in mp_names:
-                feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
-                mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
+        if current_mp_ids:
+            feeds = session.query(Feed).filter(Feed.id.in_(current_mp_ids)).all()
+            mp_names = {feed.id: feed.mp_name for feed in feeds}
         
         # 合并公众号名称到文章列表
         article_list = []
