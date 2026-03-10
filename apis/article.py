@@ -149,10 +149,22 @@ async def get_articles(
             query = query.filter(
                format_search_kw(search)
             )
+        import time
+        from datetime import datetime
         if start_date:
-            query = query.filter(Article.publish_time >= f"{start_date} 00:00:00")
+            try:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                start_ts = int(time.mktime(start_dt.timetuple()))
+                query = query.filter(Article.publish_time >= start_ts)
+            except ValueError:
+                pass
         if end_date:
-            query = query.filter(Article.publish_time <= f"{end_date} 23:59:59")
+            try:
+                end_dt = datetime.strptime(f"{end_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
+                end_ts = int(time.mktime(end_dt.timetuple()))
+                query = query.filter(Article.publish_time <= end_ts)
+            except ValueError:
+                pass
         
         # 获取总数
         total = query.count()
