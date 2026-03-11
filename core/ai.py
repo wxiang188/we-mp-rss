@@ -10,9 +10,11 @@ def get_ai_config():
     raw_url = cfg.get("AI_API_URL", os.environ.get("MINIMAX_API_URL", "https://api.minimaxi.com/v1/text/chatcompletion_v2"))
     url = raw_url.strip() if raw_url else "https://api.minimaxi.com/v1/text/chatcompletion_v2"
     
-    # 路径自动补全：如果只有域名，补全默认路径
-    if url.startswith("http") and "/" not in url.replace("://", ""):
-        url = url.rstrip("/") + "/v1/text/chatcompletion_v2"
+    # 降维打击：如果 URL 包含错误的后缀（如 /anthropic 或 /v1/messages），强制重置为正确的 Minimax 路径
+    if "/anthropic" in url or "/v1/messages" in url or url.endswith(".com") or url.endswith(".chat") or url.endswith(".io"):
+        # 提取域名部分并重新拼接
+        domain = url.split("//")[-1].split("/")[0]
+        url = f"https://{domain}/v1/text/chatcompletion_v2"
         
     return {
         "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k")).strip(),
