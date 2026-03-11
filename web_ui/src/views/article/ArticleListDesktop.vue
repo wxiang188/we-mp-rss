@@ -365,53 +365,62 @@ const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
 }
 
 const handleBatchAnalyze = async () => {
-  if (selectedRowKeys.value.length === 0) return
+  if (selectedRowKeys.value.length === 0 || analyzing.value) return
   
   analyzeModalVisible.value = true
   analyzing.value = true
   analyzePercent.value = 0
   analyzeLogs.value = []
   analyzeStatus.value = 'normal'
-  analyzeProgressText.value = `准备分析 ${selectedRowKeys.value.length} 篇文章...`
   
-  addLog(`开始批量分析任务，共 ${selectedRowKeys.value.length} 篇文章`)
+  // 冻结当前选中的 ID，防止循环过程中被界面修改影响计算
+  const taskIds = [...selectedRowKeys.value]
+  const total = taskIds.length
+  
+  analyzeProgressText.value = `准备分析 ${total} 篇文章...`
+  addLog(`开始批量分析任务，共 ${total} 篇文章`)
   
   let successCount = 0
   let failCount = 0
-  const total = selectedRowKeys.value.length
   
-  for (let i = 0; i < total; i++) {
-    // 检查分析任务是否还在持续
-    if (!analyzeModalVisible.value) break
+  try {
+    for (let i = 0; i < total; i++) {
+      // 检查分析任务是否因关闭弹窗而中断
+      if (!analyzeModalVisible.value) {
+        addLog("任务被用户中断", 'error')
+        break
+      }
 
-    const articleId = selectedRowKeys.value[i]
-    const article = articles.value.find(a => a.id === articleId)
-    const title = article ? article.title : articleId
-    
-    analyzeProgressText.value = `正在分析 (${i + 1}/${total}): ${title}`
-    addLog(`正在分析: ${title}...`)
-    
-    try {
-      await analyzeArticle(articleId)
-      successCount++
-      addLog(`✅ 分析成功: ${title}`, 'info')
-    } catch (err) {
-      failCount++
-      const errorMsg = err.response?.data?.message || err.message || '未知错误'
-      addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
+      const articleId = taskIds[i]
+      const article = articles.value.find(a => a.id === articleId)
+      const title = article ? article.title : articleId
+      
+      analyzeProgressText.value = `正在分析 (${i + 1}/${total}): ${title}`
+      addLog(`正在分析: ${title}...`)
+      
+      try {
+        await analyzeArticle(articleId)
+        successCount++
+        addLog(`✅ 分析成功: ${title}`, 'info')
+      } catch (err) {
+        failCount++
+        const errorMsg = err.response?.data?.message || err.message || '调用 API 失败'
+        addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
+      }
+      
+      // 严谨百分比计算：使用 Math.min 固化上限，Math.floor 固化下限
+      analyzePercent.value = Math.min(100, Math.floor(((i + 1) / total) * 100))
     }
+  } finally {
+    analyzing.value = false
+    analyzeStatus.value = failCount > 0 ? 'warning' : 'success'
+    analyzeProgressText.value = `分析结束！成功: ${successCount}, 失败: ${failCount}`
+    addLog(`任务统计。成功: ${successCount}, 失败: ${failCount}`)
     
-    // 严谨计算进度，防止超过 100
-    analyzePercent.value = Math.floor(((i + 1) / total) * 100)
+    // 任务结束后清空选择并刷新
+    selectedRowKeys.value = []
+    fetchArticles()
   }
-  
-  analyzing.value = false
-  analyzeStatus.value = failCount > 0 ? 'warning' : 'success'
-  analyzeProgressText.value = `分析完成！成功: ${successCount}, 失败: ${failCount}`
-  addLog(`任务结束。成功: ${successCount}, 失败: ${failCount}`)
-  
-  // 刷新列表获取最新的 AI 字段
-  fetchArticles()
 }
 
 const pagination = ref({

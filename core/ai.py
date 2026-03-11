@@ -6,12 +6,20 @@ from core.print import print_info, print_error, print_success
 
 def get_ai_config():
     """获取 AI 配置信息"""
+    # 智能读取配置，优先从数据库获取，并清理前后空格/换行
+    raw_url = cfg.get("AI_API_URL", os.environ.get("MINIMAX_API_URL", "https://api.minimaxi.com/v1/text/chatcompletion_v2"))
+    url = raw_url.strip() if raw_url else "https://api.minimaxi.com/v1/text/chatcompletion_v2"
+    
+    # 路径自动补全：如果只有域名，补全默认路径
+    if url.startswith("http") and "/" not in url.replace("://", ""):
+        url = url.rstrip("/") + "/v1/text/chatcompletion_v2"
+        
     return {
-        "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "")),
-        "url": cfg.get("AI_API_URL", "https://api.minimax.chat/v1/text/chatcompletion_v2"),
-        "model": cfg.get("AI_MODEL", "abab6.5-chat"),
-        "temperature": cfg.get("AI_TEMPERATURE", 0.1),
-        "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", ""))
+        "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "")).strip(),
+        "url": url,
+        "model": cfg.get("AI_MODEL", "abab6.5-chat").strip(),
+        "temperature": float(cfg.get("AI_TEMPERATURE", 0.1)),
+        "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
     }
 
 def analyze_article(title: str, content: str) -> dict:
@@ -61,9 +69,13 @@ def analyze_article(title: str, content: str) -> dict:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {ai_cfg['api_key']}"
         }
+        # 针对 Minimax V2 接口，提供多重 GroupId 兼容
+        if ai_cfg.get("group_id"):
+            headers["GroupId"] = ai_cfg["group_id"]
+            headers["x-group-id"] = ai_cfg["group_id"]
         
         url = ai_cfg["url"]
-        # 如果是 minimax 的 v2 接口，通常需要 GroupId
+        # URL 参数兼容
         if ai_cfg.get("group_id") and "GroupId=" not in url:
             connector = "&" if "?" in url else "?"
             url = f"{url}{connector}GroupId={ai_cfg['group_id']}"
