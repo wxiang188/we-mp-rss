@@ -149,9 +149,22 @@ class Config:
         except:
             return v
     def get(self,key,default:any=None):
+        # 1. 优先尝试从数据库获取 (实时性最高)
+        try:
+            from core.db import DB
+            from core.models.config_management import ConfigManagement
+            db = DB.get_session()
+            if db:
+                db_config = db.query(ConfigManagement).filter(ConfigManagement.config_key == key).first()
+                if db_config:
+                    return self.__fix(db_config.config_value)
+        except Exception as e:
+            # 数据库未初始化或查询失败时跳过
+            pass
+
         _config=self.replace_env_vars(self.config)
         
-        # 支持嵌套key访问
+        # 2. 如果数据库没有，则从 YAML 缓存中获取
         keys = key.split('.') if isinstance(key, str) else [key]
         value = _config
         try:
@@ -163,7 +176,6 @@ class Config:
             else:
                 return val
         except (KeyError, TypeError):
-            # print_warning("Key {} not found in configuration".format(key))
             pass
         return default 
 
