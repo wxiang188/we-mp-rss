@@ -145,7 +145,7 @@
               </a-dropdown>
               <a-button type="primary" status="success" @click="handleBatchAnalyze" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-thunderbolt /></template>
-                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V15-ULTRACLEAN)</span>
+                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V16-FINAL-CLEAN)</span>
               </a-button>
               <a-button type="primary" status="danger" @click="handleBatchDelete" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-delete /></template>
@@ -155,10 +155,10 @@
           </template>
         </a-page-header>
 
-        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V15-ULTRACLEAN)" :footer="false" :mask-closable="false">
+        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V16-FINAL-CLEAN)" :footer="false" :mask-closable="false">
           <div style="margin-bottom: 20px;">
-            <a-progress :percent="analyzePercent" :status="analyzeStatus" />
-            <div style="margin-top: 10px; text-align: center;">{{ analyzeProgressText }}</div>
+            <!-- <a-progress :percent="analyzePercent" :status="analyzeStatus" /> -->
+            <div style="margin-top: 10px; text-align: center; font-weight: bold;">{{ analyzeProgressText }}</div>
           </div>
           <div class="log-container" ref="logContainer" style="height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace;">
             <div v-for="(log, index) in analyzeLogs" :key="index" :style="{ color: log.type === 'error' ? 'red' : 'inherit', marginBottom: '4px' }">
