@@ -161,7 +161,7 @@ cascade:
   task_poll_interval: ${CASCADE_TASK_POLL_INTERVAL:-30}
 
 # MiniMax AI 配置
-AI_API_URL: ${AI_API_URL:-https://api.minimaxi.com/v1/text/chatcompletion_v2}
-AI_MODEL: ${AI_MODEL:-MiniMax-Text-01}
+AI_API_URL: ${AI_API_URL:-https://api.minimax.chat/v1/text/chatcompletion_v2}
+AI_MODEL: ${AI_MODEL:-MiniMax-M2.5}
 AI_API_KEY: ${MINIMAX_API_KEY:-sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k}
 AI_TEMPERATURE: ${AI_TEMPERATURE:-0.1}
