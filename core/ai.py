@@ -2,14 +2,13 @@ import os
 import requests
 import json
 import re
-from core.config import get_config
-from core.utils import print_info, print_error
+from core.print import print_info, print_error
 
 # 核心配置：使用用户提供的固定 Key 和 Anthropic 协议
 AI_API_KEY = "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k"
 AI_ENDPOINT = "https://api.minimax.chat/anthropic/v1/messages"
 AI_MODEL = "MiniMax-M2.5"
-BACKEND_VERSION = "V10-ANTHROPIC-STABLE"
+BACKEND_VERSION = "V11-ANTHROPIC-FIXED"
 
 def analyze_article(title: str, content: str) -> dict:
     """
