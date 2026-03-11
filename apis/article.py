@@ -239,7 +239,51 @@ async def get_article_detail(
                 code=50001,
                 message=f"获取文章详情失败: {str(e)}"
             )
-        )   
+        )
+
+@router.post("/{article_id}/analyze", summary="人工触发 AI 分析文章")
+async def analyze_article_manually(
+    article_id: str,
+    current_user: dict = Depends(get_current_user_or_ak)
+):
+    session = DB.get_session()
+    try:
+        from core.models.article import Article
+        article = session.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(
+                status_code=fast_status.HTTP_404_NOT_FOUND,
+                detail=error_response(
+                    code=40401,
+                    message="文章不存在"
+                )
+            )
+        
+        from core.ai import analyze_article
+        ai_res = analyze_article(article.title, article.content_html or article.content or article.description)
+        
+        # 更新数据库
+        article.ai_category = ai_res.get('category', '其他')
+        article.ai_reason = ai_res.get('reason', '')
+        article.ai_summary = ai_res.get('summary', '')
+        session.commit()
+        
+        return success_response({
+            "message": f"文章《{article.title}》分析完成",
+            "category": article.ai_category,
+            "reason": article.ai_reason,
+            "summary": article.ai_summary
+        })
+    except Exception as e:
+        session.rollback()
+        print(f"人工AI分析错误: {str(e)}")
+        raise HTTPException(
+            status_code=fast_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_response(
+                code=50001,
+                message=f"分析失败: {str(e)}"
+            )
+        )
 
 @router.delete("/{article_id}", summary="删除文章")
 async def delete_article(

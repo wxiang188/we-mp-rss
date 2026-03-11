@@ -33,7 +33,7 @@ def analyze_article(title: str, content: str) -> dict:
             "messages": [
                 {
                     "role": "system",
-                    "content": "你是资深的微信公众号运营专家。请仅返回合法的JSON字符串格式数据，包含'category'和'summary'两个字段。category的值必须是'便民服务宣传'或'运营活动宣传'或'其他'。"
+                    "content": "你是资深的微信公众号运营专家。请仅返回合法的JSON字符串格式数据，包含'category'、'reason'和'summary'三个字段。category的值必须是'便民服务宣传'或'运营活动宣传'或'其他'。'reason'字段请用一句话说明分类理由，'summary'字段请对文章内容做一段30-50字的精简总结。"
                 },
                 {
                     "role": "user",
@@ -65,7 +65,8 @@ def analyze_article(title: str, content: str) -> dict:
                         
                     return {
                         "category": cat,
-                        "summary": result.get('summary', 'AI生成理由缺失')
+                        "reason": result.get('reason', 'AI生成理由缺失'),
+                        "summary": result.get('summary', 'AI概括缺失')
                     }
                 except json.JSONDecodeError:
                     print_error(f"[AI] JSON 解析失败, AI 返回的内容: {ai_text}")

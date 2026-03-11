@@ -139,6 +139,10 @@
                     </template>Text</a-doption>
                 </template>
               </a-dropdown>
+              <a-button type="primary" status="success" @click="handleBatchAnalyze" :disabled="!selectedRowKeys.length">
+                <template #icon><icon-thunderbolt /></template>
+                AI分析
+              </a-button>
               <a-button type="primary" status="danger" @click="handleBatchDelete" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-delete /></template>
                 批量删除
@@ -146,6 +150,21 @@
             </a-space>
           </template>
         </a-page-header>
+
+        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度" :footer="false" :mask-closable="false">
+          <div style="margin-bottom: 20px;">
+            <a-progress :percent="analyzePercent" :status="analyzeStatus" />
+            <div style="margin-top: 10px; text-align: center;">{{ analyzeProgressText }}</div>
+          </div>
+          <div class="log-container" ref="logContainer" style="height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace;">
+            <div v-for="(log, index) in analyzeLogs" :key="index" :style="{ color: log.type === 'error' ? 'red' : 'inherit', marginBottom: '4px' }">
+              {{ log.time }} - {{ log.msg }}
+            </div>
+          </div>
+          <div style="margin-top: 20px; text-align: right;">
+            <a-button type="primary" :disabled="analyzing" @click="analyzeModalVisible = false">关闭</a-button>
+          </div>
+        </a-modal>
 
         <a-card style="border:0">
           <a-alert type="success" closable>{{ activeFeed?.mp_intro || "请选择一个公众号码进行管理,搜索文章后再点击订阅会有惊喜哟！！！" }}</a-alert>
@@ -226,8 +245,8 @@ import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import { ref, onMounted, h, nextTick, watch, computed } from 'vue'
 import axios from 'axios'
-import { IconApps, IconAtt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal } from '@arco-design/web-vue/es/icon'
-import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus } from '@/api/article'
+import { IconApps, IconAt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconThunderbolt } from '@arco-design/web-vue/es/icon'
+import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
 import ExportModal from '@/components/ExportModal.vue'
 import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
@@ -261,6 +280,69 @@ const filterStatus = ref('')
 const mpSearchText = ref('')
 const dateRange = ref([])
 const aiCategory = ref('')
+
+// AI 分析相关
+const analyzeModalVisible = ref(false)
+const analyzing = ref(false)
+const analyzePercent = ref(0)
+const analyzeProgressText = ref('')
+const analyzeLogs = ref([])
+const analyzeStatus = ref<'normal' | 'success' | 'warning' | 'danger'>('normal')
+const logContainer = ref(null)
+
+const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
+  const time = new Date().toLocaleTimeString()
+  analyzeLogs.value.push({ time, msg, type })
+  nextTick(() => {
+    if (logContainer.value) {
+      logContainer.value.scrollTop = logContainer.value.scrollHeight
+    }
+  })
+}
+
+const handleBatchAnalyze = async () => {
+  if (selectedRowKeys.value.length === 0) return
+  
+  analyzeModalVisible.value = true
+  analyzing.value = true
+  analyzePercent.value = 0
+  analyzeLogs.value = []
+  analyzeStatus.value = 'normal'
+  analyzeProgressText.value = `准备分析 ${selectedRowKeys.value.length} 篇文章...`
+  
+  addLog(`开始批量分析任务，共 ${selectedRowKeys.value.length} 篇文章`)
+  
+  let successCount = 0
+  let failCount = 0
+  
+  for (let i = 0; i < selectedRowKeys.value.length; i++) {
+    const articleId = selectedRowKeys.value[i]
+    const article = articles.value.find(a => a.id === articleId)
+    const title = article ? article.title : articleId
+    
+    analyzeProgressText.value = `正在分析 (${i + 1}/${selectedRowKeys.value.length}): ${title}`
+    addLog(`正在分析: ${title}...`)
+    
+    try {
+      await analyzeArticle(articleId)
+      successCount++
+      addLog(`✅ 分析成功: ${title}`, 'info')
+    } catch (err) {
+      failCount++
+      addLog(`❌ 分析失败: ${title} (${err.message || '未知错误'})`, 'error')
+    }
+    
+    analyzePercent.value = Math.round(((i + 1) / selectedRowKeys.value.length) * 100)
+  }
+  
+  analyzing.value = false
+  analyzeStatus.value = failCount > 0 ? 'warning' : 'success'
+  analyzeProgressText.value = `分析完成！成功: ${successCount}, 失败: ${failCount}`
+  addLog(`任务结束。成功: ${successCount}, 失败: ${failCount}`)
+  
+  // 刷新列表
+  fetchArticles()
+}
 
 const pagination = ref({
   current: 1,
@@ -370,6 +452,22 @@ const columns = [
       { style: { color: 'var(--color-text-3)', fontSize: '12px' } },
       formatDateTime(record.created_at)
     )
+  },
+  {
+    title: 'AI分类理由',
+    dataIndex: 'ai_reason',
+    width: '200',
+    ellipsis: true,
+    tooltip: true,
+    render: ({ record }) => h('span', { style: { fontSize: '12px', color: 'var(--color-text-2)' } }, record.ai_reason || '-')
+  },
+  {
+    title: 'AI总结',
+    dataIndex: 'ai_summary',
+    width: '250',
+    ellipsis: true,
+    tooltip: true,
+    render: ({ record }) => h('span', { style: { fontSize: '12px', color: 'var(--color-text-3)' } }, record.ai_summary || '-')
   },
   {
     title: '发布时间',

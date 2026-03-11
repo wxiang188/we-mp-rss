@@ -65,6 +65,9 @@ class Db:
                         if 'ai_summary' not in columns:
                             conn.execute(text("ALTER TABLE articles ADD COLUMN ai_summary VARCHAR(500) DEFAULT ''"))
                             print_success("Auto-migrated: added ai_summary to articles table")
+                        if 'ai_reason' not in columns:
+                            conn.execute(text("ALTER TABLE articles ADD COLUMN ai_reason VARCHAR(1000) DEFAULT ''"))
+                            print_success("Auto-migrated: added ai_reason to articles table")
             except Exception as migrate_e:
                 print_error(f"Migration error: {migrate_e}")
         except Exception as e:
@@ -194,6 +197,7 @@ class Db:
                     from core.ai import analyze_article
                     ai_res = analyze_article(art.title, art.content_html or art.content or art.description)
                     art.ai_category = ai_res.get('category', '其他')
+                    art.ai_reason = ai_res.get('reason', '')
                     art.ai_summary = ai_res.get('summary', '')
                 except Exception as ai_e:
                     print_warning(f"AI Category analysis failed for article {art.id}: {ai_e}")

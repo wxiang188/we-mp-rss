@@ -19,6 +19,7 @@ class ArticleBase(Base):
     is_export = Column(Integer)
     is_read = Column(Integer, default=0)
     ai_category = Column(String(50), default="其他")
+    ai_reason = Column(String(1000), default="")
     ai_summary = Column(String(500), default="")
 class Article(ArticleBase):
     content = Column(Text)
@@ -42,5 +43,6 @@ class Article(ArticleBase):
             'is_export': self.is_export,
             'is_read': self.is_read,
             'ai_category': self.ai_category,
+            'ai_reason': self.ai_reason,
             'ai_summary': self.ai_summary
         }

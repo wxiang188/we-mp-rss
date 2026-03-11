@@ -37,13 +37,18 @@
                   </span>
                   <div style="display:flex; flex-direction:column; gap:4px; flex:1; overflow:hidden;">
                     <a-typography-text strong :heading="1"><strong>{{ item.title }}</strong></a-typography-text>
-                    <div v-if="item.ai_category" style="margin-top:2px;">
-                      <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : (item.ai_category === '运营活动宣传' ? 'orange' : 'gray')" size="small">
-                        {{ item.ai_category }}
-                      </a-tag>
-                      <span style="font-size:12px; color:var(--color-text-3); margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; max-width:80%; vertical-align:middle;">
+                    <div v-if="item.ai_category" style="margin-top:2px; display: flex; flex-direction: column; gap: 2px;">
+                      <div style="display: flex; align-items: center; gap: 4px;">
+                        <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : (item.ai_category === '运营活动宣传' ? 'orange' : 'gray')" size="small">
+                          {{ item.ai_category }}
+                        </a-tag>
+                        <span style="font-size:11px; color:var(--color-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                          {{ item.ai_reason }}
+                        </span>
+                      </div>
+                      <div style="font-size:12px; color:var(--color-text-3); line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;">
                         {{ item.ai_summary }}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 </div>

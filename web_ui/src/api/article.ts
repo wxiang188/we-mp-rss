@@ -23,6 +23,7 @@ export interface Article {
   created_at: string
   is_read?: number
   ai_category?: string
+  ai_reason?: string
   ai_summary?: string
 }
 
@@ -43,6 +44,8 @@ export interface ArticleListParams {
   start_date?: string
   end_date?: string
   ai_category?: string
+  page?: number
+  pageSize?: number
 }
 
 /**
@@ -147,9 +150,17 @@ export const ClearDuplicateArticle = (id: number) => {
  * @param is_read 阅读状态
  * @returns 操作结果
  */
-export const toggleArticleReadStatus = (id: number, is_read: boolean) => {
+export const toggleArticleReadStatus = (id: string | number, is_read: boolean) => {
   return http.put<{ code: number, message: string, is_read: boolean }>(`/wx/articles/${id}/read`, null, {
     params: { is_read }
   })
+}
+
+/**
+ * 人工触发 AI 分析文章
+ * @param id 文章ID
+ */
+export const analyzeArticle = (id: string | number) => {
+  return http.post<{ code: number, data: any }>(`/wx/articles/${id}/analyze`)
 }
 
