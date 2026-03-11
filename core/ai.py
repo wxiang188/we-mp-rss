@@ -90,8 +90,12 @@ def analyze_article(title: str, content: str) -> dict:
         
         if response.status_code == 200:
             res_json = response.json()
-            if "choices" in res_json and len(res_json["choices"]) > 0:
-                ai_text = res_json["choices"][0]["message"]["content"]
+            choices = res_json.get("choices")
+            if choices and isinstance(choices, list) and len(choices) > 0:
+                ai_text = choices[0].get("message", {}).get("content")
+                if not ai_text:
+                     print_error(f"[AI] 响应中 choices[0].message.content 为空: {res_json}")
+                     return {"category": "其他", "summary": "AI 返回内容为空"}
                 # 尝试解析 JSON
                 try:
                     import json
