@@ -136,7 +136,7 @@ async def get_classify_status(current_user=Depends(get_current_user)):
     # 计算百分比，确保不超过 100%
     percent = 0
     if classify_status["total"] > 0:
-        percent = min(100, int(classify_status["processed"] / classify_status["total"] * 100))
+        percent = min(100, round(classify_status["processed"] / classify_status["total"] * 100, 1))
 
     return {
         "code": 0,

@@ -157,7 +157,7 @@
 
         <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V16-FINAL-CLEAN)" :footer="false" :mask-closable="false">
           <div style="margin-bottom: 20px;">
-            <!-- <a-progress :percent="analyzePercent" :status="analyzeStatus" /> -->
+            <a-progress :percent="analyzePercent" :status="analyzeStatus" />
             <div style="margin-top: 10px; text-align: center; font-weight: bold;">{{ analyzeProgressText }}</div>
           </div>
           <div class="log-container" ref="logContainer" style="height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace;">
@@ -409,9 +409,9 @@ const handleBatchAnalyze = async () => {
         addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
       }
       
-      // 严谨百分比计算：确保结果在 0-100 之间，避免组件内部可能的二次乘法溢出
+      // 修正百分比计算：Arco Design a-progress 接收 0-100 的数值
       const rawPercent = ((i + 1) / total) * 100
-      analyzePercent.value = Math.min(100, Math.max(0, Math.floor(rawPercent)))
+      analyzePercent.value = Math.min(100, Math.max(0, Math.round(rawPercent)))
     }
   } finally {
     analyzing.value = false
