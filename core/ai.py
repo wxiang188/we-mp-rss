@@ -91,8 +91,7 @@ def analyze_article(title: str, content: str) -> dict:
                 }
             ],
             "temperature": 0.1,
-            "top_p": 0.9,
-            "response_format": {"type": "json_object"}
+            "top_p": 0.9
         }
         
         headers = {
@@ -116,6 +115,17 @@ def analyze_article(title: str, content: str) -> dict:
             choices = res_json.get("choices")
             if choices and isinstance(choices, list) and len(choices) > 0:
                 ai_text = choices[0].get("message", {}).get("content", "")
+                
+                # 兼容部分模型可能会包裹 Markdown 格式
+                ai_text = ai_text.strip()
+                if ai_text.startswith("```json"):
+                    ai_text = ai_text[7:]
+                elif ai_text.startswith("```"):
+                    ai_text = ai_text[3:]
+                if ai_text.endswith("```"):
+                    ai_text = ai_text[:-3]
+                ai_text = ai_text.strip()
+                
                 try:
                     result = json.loads(ai_text)
                     
