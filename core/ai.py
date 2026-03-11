@@ -105,8 +105,17 @@ def analyze_article(title: str, content: str) -> dict:
         
         if response.status_code == 200:
             res_json = response.json()
-            if "choices" in res_json and len(res_json["choices"]) > 0:
-                ai_text = res_json["choices"][0]["message"]["content"]
+            
+            # MiniMax 常常在 HTTP 200 中返回业务级错误
+            base_resp = res_json.get("base_resp", {})
+            if base_resp and base_resp.get("status_code", 0) != 0:
+                err_msg = base_resp.get("status_msg", "未知业务错误")
+                print_error(f"[AI] API 返回业务错误: {err_msg}")
+                return {"category": "其他", "summary": f"API报错: {err_msg}", "ai_tags": ""}
+                
+            choices = res_json.get("choices")
+            if choices and isinstance(choices, list) and len(choices) > 0:
+                ai_text = choices[0].get("message", {}).get("content", "")
                 try:
                     result = json.loads(ai_text)
                     
@@ -131,7 +140,7 @@ def analyze_article(title: str, content: str) -> dict:
                     print_error(f"[AI] JSON 解析失败, AI 返回的内容: {ai_text}")
                     return {"category": "其他", "summary": "AI结果解析异常", "ai_tags": ""}
             else:
-                print_error(f"[AI] API 返回内容异常: {res_json}")
+                print_error(f"[AI] API 返回内容异常或格式不符: {res_json}")
                 return {"category": "其他", "summary": "AI接口响应空内容", "ai_tags": ""}
         else:
             print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {response.text}")
