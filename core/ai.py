@@ -4,18 +4,18 @@ import json
 import re
 from core.print import print_info, print_error
 
-# 核心配置：使用用户提供的固定 Key 和 Anthropic 协议
+# 核心配置：V13 饱和式适配版
 AI_API_KEY = "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k"
-AI_ENDPOINT = "https://api.minimax.chat/anthropic/v1/messages"
+# 切换为官方文档推荐的域名
+AI_ENDPOINT = "https://api.minimaxi.com/anthropic/v1/messages"
 AI_MODEL = "MiniMax-M2.5"
-BACKEND_VERSION = "V12-ANTHROPIC-STABLE"
+BACKEND_VERSION = "V13-ANTHROPIC-ULTIMATE"
 
 def analyze_article(title: str, content: str) -> dict:
     """
     使用 MiniMax Anthropic 兼容接口进行文章分析总结。
     """
     try:
-        # 构建适合 Anthropic 协议的消息结构
         prompt = f"标题: {title}\n内容: {content[:1000]}"
         
         payload = {
@@ -26,12 +26,7 @@ def analyze_article(title: str, content: str) -> dict:
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        }
-                    ]
+                    "content": [{"type": "text", "text": prompt}]
                 }
             ]
         }
@@ -44,54 +39,70 @@ def analyze_article(title: str, content: str) -> dict:
 
         print_info(f"[AI-DEBUG] Version: {BACKEND_VERSION}")
         print_info(f"[AI-DEBUG] URL: {AI_ENDPOINT}")
-        print_info(f"[AI] 正在使用 Anthropic 协议 ({AI_MODEL}) 给文章 '{title}' 打标...")
         
-        response = requests.post(AI_ENDPOINT, headers=headers, json=payload, timeout=20)
+        response = requests.post(AI_ENDPOINT, headers=headers, json=payload, timeout=25)
         
         if response.status_code == 200:
             res_json = response.json()
-            print_info(f"[AI-DEBUG] Response: {json.dumps(res_json, ensure_ascii=False)}")
+            # 这里的打印非常关键，请注意查看后台日志
+            print_info(f"[AI-DEBUG] Raw Response: {json.dumps(res_json, ensure_ascii=False)}")
             
-            # Anthropic 协议的响应在 content 列表中，可能包含 thinking 和 text 块
-            content_list = res_json.get("content", [])
             ai_text = ""
-            for block in content_list:
-                if block.get("type") == "text":
-                    ai_text = block.get("text", "")
-                    break
             
+            # 策略A：标准 Anthropic 格式提取 (content 列表)
+            content_list = res_json.get("content", [])
+            if isinstance(content_list, list):
+                for block in content_list:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        ai_text = block.get("text", "")
+                        break
+                if not ai_text and content_list:
+                    # 备选：如果只有内容块但没标 type
+                    first_block = content_list[0]
+                    if isinstance(first_block, dict):
+                        ai_text = first_block.get("text", "")
+                    elif isinstance(first_block, str):
+                        ai_text = first_block
+
+            # 策略B：备选提取 (某些代理或变体可能返回 choices)
+            if not ai_text and "choices" in res_json:
+                 choices = res_json.get("choices", [])
+                 if choices:
+                     ai_text = choices[0].get("message", {}).get("content", "")
+
+            # 策略C：直接提取顶级 text 字段
             if not ai_text:
-                # 备选：如果没找到 text 类型，尝试取第一个块的 text (兼容老逻辑)
-                if content_list and len(content_list) > 0:
-                    ai_text = content_list[0].get("text", "")
+                ai_text = res_json.get("text", "")
+
+            if not ai_text:
+                error_msg = f"无法从响应中提取文本。结构: {json.dumps(res_json)[:200]}"
+                print_error(f"[AI] {error_msg}")
+                return {"category": "其他", "summary": error_msg}
             
-            if not ai_text:
-                return {"category": "其他", "summary": "AI 返回文本内容为空"}
+            # 强力解析 JSON
+            try:
+                clean_text = ai_text.strip()
+                if clean_text.startswith("```"):
+                    match = re.search(r'```(?:json)?\s*(.*?)\s*```', clean_text, re.DOTALL)
+                    if match:
+                        clean_text = match.group(1).strip()
                 
-                # 强力解析 JSON（兼容 Markdown 代码块）
-                try:
-                    clean_text = ai_text.strip()
-                    if clean_text.startswith("```"):
-                        match = re.search(r'```(?:json)?\s*(.*?)\s*```', clean_text, re.DOTALL)
-                        if match:
-                            clean_text = match.group(1).strip()
-                    
-                    result = json.loads(clean_text)
-                    return {
-                        "category": result.get("category", "其他"),
-                        "summary": result.get("summary", ai_text[:50])
-                    }
-                except Exception as e:
-                    print_error(f"[AI] JSON 解析失败: {e}, 原文: {ai_text}")
-                    return {"category": "其他", "summary": ai_text[:50]}
-            else:
-                print_error(f"[AI] 响应内容为空结构: {res_json}")
-                return {"category": "其他", "summary": "AI 未返回有效内容"}
+                # 处理可能的转义字符问题
+                result = json.loads(clean_text)
+                return {
+                    "category": result.get("category", "其他"),
+                    "reason": result.get("reason", ""),
+                    "summary": result.get("summary", "")
+                }
+            except Exception as e:
+                print_error(f"[AI] JSON 解析失败: {e}, 响应文本提示: {ai_text[:100]}")
+                # 解析失败则返回原始内容的前 100 字
+                return {"category": "其他", "summary": ai_text[:100]}
         else:
-            print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {response.text}")
-            return {"category": "其他", "summary": f"API 错误: {response.status_code}"}
+            print_error(f"[AI] 调用失败 {response.status_code}: {response.text}")
+            return {"category": "其他", "summary": f"API 状态码: {response.status_code}"}
             
     except Exception as e:
         import traceback
-        print_error(f"[AI] 发生系统错误: {str(e)}\n{traceback.format_exc()}")
+        print_error(f"[AI] 系统错误: {str(e)}\n{traceback.format_exc()}")
         return {"category": "其他", "summary": f"系统错误: {str(e)}"}
