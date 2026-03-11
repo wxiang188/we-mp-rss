@@ -145,7 +145,7 @@
               </a-dropdown>
               <a-button type="primary" status="success" @click="handleBatchAnalyze" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-thunderbolt /></template>
-                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V4-HARDFIX)</span>
+                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V15-ULTRACLEAN)</span>
               </a-button>
               <a-button type="primary" status="danger" @click="handleBatchDelete" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-delete /></template>
@@ -155,7 +155,7 @@
           </template>
         </a-page-header>
 
-        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V13-ULTIMATE)" :footer="false" :mask-closable="false">
+        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V15-ULTRACLEAN)" :footer="false" :mask-closable="false">
           <div style="margin-bottom: 20px;">
             <a-progress :percent="analyzePercent" :status="analyzeStatus" />
             <div style="margin-top: 10px; text-align: center;">{{ analyzeProgressText }}</div>
@@ -409,8 +409,9 @@ const handleBatchAnalyze = async () => {
         addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
       }
       
-      // 严谨百分比计算：使用 Math.min 固化上限，Math.floor 固化下限
-      analyzePercent.value = Math.min(100, Math.floor(((i + 1) / total) * 100))
+      // 严谨百分比计算：确保结果在 0-100 之间，避免组件内部可能的二次乘法溢出
+      const rawPercent = ((i + 1) / total) * 100
+      analyzePercent.value = Math.min(100, Math.max(0, Math.floor(rawPercent)))
     }
   } finally {
     analyzing.value = false
