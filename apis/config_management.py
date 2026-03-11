@@ -16,23 +16,42 @@ def list_configs(
     offset: int = Query(0, ge=0),
     current_user: dict = Depends(get_current_user_or_ak)
 ):
-    # db=DB.get_session()
-    """获取配置项列表"""
+    """获取配置项列表 (合并 DB 和 YAML 数据)"""
     try:
-        # total = db.query(ConfigManagement).count()
-        # configs = db.query(ConfigManagement).offset(offset).limit(limit).all()
+        db = DB.get_session()
+        # 1. 获取 YAML 中的初始配置
         from core.yaml_db import YamlDB
-        configs = YamlDB.store_config_to_list(cfg._config) 
-        total=len(configs)
+        yaml_configs = YamlDB.store_config_to_list(cfg._config)
+        configs_dict = {item["config_key"]: item for item in yaml_configs}
+
+        # 2. 获取数据库中的配置并覆盖 YAML 中的值
+        db_configs = db.query(ConfigManagement).all()
+        for db_cfg in db_configs:
+            configs_dict[db_cfg.config_key] = {
+                "config_key": db_cfg.config_key,
+                "config_value": db_cfg.config_value,
+                "description": db_cfg.description or "数据库配置项"
+            }
+
+        # 3. 转换为列表并分页
+        all_configs = list(configs_dict.values())
+        total = len(all_configs)
+        # 简单排序以保持一致性
+        all_configs.sort(key=lambda x: x["config_key"])
+        
+        paged_configs = all_configs[offset : offset + limit]
+
         return success_response(data={
-            "list": configs,
+            "list": paged_configs,
             "page": {
-                    "limit": limit,
-                    "offset": offset
-                },
-                "total": total
+                "limit": limit,
+                "offset": offset
+            },
+            "total": total
         })
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())
         return error_response(code=500, message=str(e))
 
 @router.get("/{config_key}", summary="获取单个配置项详情")

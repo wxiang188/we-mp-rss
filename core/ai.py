@@ -10,7 +10,8 @@ def get_ai_config():
         "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "")),
         "url": cfg.get("AI_API_URL", "https://api.minimax.chat/v1/text/chatcompletion_v2"),
         "model": cfg.get("AI_MODEL", "abab6.5-chat"),
-        "temperature": cfg.get("AI_TEMPERATURE", 0.1)
+        "temperature": cfg.get("AI_TEMPERATURE", 0.1),
+        "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", ""))
     }
 
 def analyze_article(title: str, content: str) -> dict:
@@ -61,8 +62,14 @@ def analyze_article(title: str, content: str) -> dict:
             "Authorization": f"Bearer {ai_cfg['api_key']}"
         }
         
+        url = ai_cfg["url"]
+        # 如果是 minimax 的 v2 接口，通常需要 GroupId
+        if ai_cfg.get("group_id") and "GroupId=" not in url:
+            connector = "&" if "?" in url else "?"
+            url = f"{url}{connector}GroupId={ai_cfg['group_id']}"
+
         print_info(f"[AI] 正在使用 {ai_cfg['model']} 给文章 '{title}' 打标...")
-        response = requests.post(ai_cfg["url"], headers=headers, json=payload, timeout=20)
+        response = requests.post(url, headers=headers, json=payload, timeout=20)
         
         if response.status_code == 200:
             res_json = response.json()
@@ -90,8 +97,10 @@ def analyze_article(title: str, content: str) -> dict:
                  return {"category": "其他", "summary": "AI接口响应空内容"}
         else:
              print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {response.text}")
-             return {"category": "其他", "summary": f"AI接口状态异常: {response.status_code}"}
+             return {"category": "其他", "summary": f"AI服务报错({response.status_code}): {response.text[:100]}"}
              
     except Exception as e:
-        print_error(f"[AI] 分析文章时发生系统错误: {str(e)}")
-        return {"category": "其他", "summary": "调用大模型失败"}
+        import traceback
+        err_msg = traceback.format_exc()
+        print_error(f"[AI] 分析文章时发生系统错误:\n{err_msg}")
+        return {"category": "其他", "summary": f"系统错误: {str(e)[:50]}"}

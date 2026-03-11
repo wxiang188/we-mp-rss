@@ -100,11 +100,11 @@
                 </a-button>
                 <template #content>
                   <a-doption @click="clear_articles">
-                    <template #icon> <TextIcon text="E" /></template>
+                    <template #icon> <TextIcon text="E" iconClass="" /></template>
                     清理无效文章
                   </a-doption>
                   <a-doption @click="clear_duplicate_article">
-                    <template #icon> <TextIcon text="C" /></template>
+                    <template #icon> <TextIcon text="C" iconClass="" /></template>
                     清理重复文章
                   </a-doption>
                 </template>
@@ -127,19 +127,19 @@
                 </a-button>
                 <template #content>
                   <a-doption @click="rssFormat = 'atom'; openRssFeed()"><template #icon>
-                      <TextIcon text="atom" />
+                      <TextIcon text="atom" iconClass="" />
                     </template>ATOM</a-doption>
                   <a-doption @click="rssFormat = 'rss'; openRssFeed()"><template #icon>
-                      <TextIcon text="rss" />
+                      <TextIcon text="rss" iconClass="" />
                     </template>RSS</a-doption>
                   <a-doption @click="rssFormat = 'json'; openRssFeed()"><template #icon>
-                      <TextIcon text="json" />
+                      <TextIcon text="json" iconClass="" />
                     </template>JSON</a-doption>
                   <a-doption @click="rssFormat = 'md'; openRssFeed()"><template #icon>
-                      <TextIcon text="md" />
+                      <TextIcon text="md" iconClass="" />
                     </template>Markdown</a-doption>
                   <a-doption @click="rssFormat = 'txt'; openRssFeed()"><template #icon>
-                      <TextIcon text="txt" />
+                      <TextIcon text="txt" iconClass="" />
                     </template>Text</a-doption>
                 </template>
               </a-dropdown>
@@ -236,6 +236,9 @@
               <a-form-item label="模型名称" help="使用的模型 ID">
                 <a-input v-model="aiConfigForm.AI_MODEL" placeholder="abab6.5-chat" />
               </a-form-item>
+              <a-form-item label="Group ID" help="Minimax 账户的 Group ID (V2接口必备)">
+                <a-input v-model="aiConfigForm.AI_GROUP_ID" placeholder="请输入 Group ID" />
+              </a-form-item>
               <a-form-item label="Temperature" help="采样温度 (0.1 ~ 1.0)">
                 <a-input-number v-model="aiConfigForm.AI_TEMPERATURE" :min="0.1" :max="1.0" :step="0.1" />
               </a-form-item>
@@ -285,7 +288,8 @@ const aiConfigForm = ref({
   AI_API_KEY: '',
   AI_API_URL: '',
   AI_MODEL: '',
-  AI_TEMPERATURE: 0.1
+  AI_TEMPERATURE: 0.1,
+  AI_GROUP_ID: ''
 })
 
 const showAiConfig = async () => {
@@ -374,13 +378,17 @@ const handleBatchAnalyze = async () => {
   
   let successCount = 0
   let failCount = 0
+  const total = selectedRowKeys.value.length
   
-  for (let i = 0; i < selectedRowKeys.value.length; i++) {
+  for (let i = 0; i < total; i++) {
+    // 检查分析任务是否还在持续
+    if (!analyzeModalVisible.value) break
+
     const articleId = selectedRowKeys.value[i]
     const article = articles.value.find(a => a.id === articleId)
     const title = article ? article.title : articleId
     
-    analyzeProgressText.value = `正在分析 (${i + 1}/${selectedRowKeys.value.length}): ${title}`
+    analyzeProgressText.value = `正在分析 (${i + 1}/${total}): ${title}`
     addLog(`正在分析: ${title}...`)
     
     try {
@@ -389,10 +397,12 @@ const handleBatchAnalyze = async () => {
       addLog(`✅ 分析成功: ${title}`, 'info')
     } catch (err) {
       failCount++
-      addLog(`❌ 分析失败: ${title} (${err.message || '未知错误'})`, 'error')
+      const errorMsg = err.response?.data?.message || err.message || '未知错误'
+      addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
     }
     
-    analyzePercent.value = Math.min(100, Math.round(((i + 1) / selectedRowKeys.value.length) * 100))
+    // 严谨计算进度，防止超过 100
+    analyzePercent.value = Math.floor(((i + 1) / total) * 100)
   }
   
   analyzing.value = false
@@ -400,7 +410,7 @@ const handleBatchAnalyze = async () => {
   analyzeProgressText.value = `分析完成！成功: ${successCount}, 失败: ${failCount}`
   addLog(`任务结束。成功: ${successCount}, 失败: ${failCount}`)
   
-  // 刷新列表
+  // 刷新列表获取最新的 AI 字段
   fetchArticles()
 }
 
@@ -425,6 +435,8 @@ const statusColorMap = {
   draft: 'orange',
   deleted: 'red'
 }
+
+// 已在上方定义
 
 const columns = [
   {
@@ -560,10 +572,26 @@ const activeFeed = ref({
   id: "",
   name: "全部",
 })
+// 切换公众号状态
+const toggleMpStatus = async (mpId: string, newStatus: number) => {
+  try {
+    await toggleMpStatusApi(mpId, newStatus);
+    Message.success(newStatus === 0 ? '公众号已禁用' : '公众号已启用');
+    // 更新本地数据
+    const index = mpList.value.findIndex(item => item.id === mpId);
+    if (index !== -1) {
+      (mpList.value[index] as any).status = newStatus;
+    }
+  } catch (error) {
+    console.error('更新公众号状态失败:', error);
+    Message.error('更新公众号状态失败');
+  }
+}
+
 const handleMpClick = (mpId: string) => {
   activeMpId.value = mpId
   pagination.value.current = 1
-  activeFeed.value = mpList.value.find(item => item.id === activeMpId.value)
+  activeFeed.value = mpList.value.find(item => item.id === activeMpId.value) || { id: "", name: "全部" }
   console.log(activeFeed.value)
 
   fetchArticles()
@@ -583,7 +611,7 @@ const fetchArticles = async () => {
       ai_category: aiCategory.value || undefined
     })
 
-    const res = await getArticles({
+    const res = (await getArticles({
       page: pagination.value.current - 1,
       pageSize: pagination.value.pageSize,
       search: searchText.value,
@@ -592,10 +620,10 @@ const fetchArticles = async () => {
       start_date: dateRange.value?.[0] || undefined,
       end_date: dateRange.value?.[1] || undefined,
       ai_category: aiCategory.value || undefined
-    })
+    })) as any
 
     // 确保数据包含必要字段
-    articles.value = (res.list || []).map(item => ({
+    articles.value = (res.list || []).map((item: any) => ({
       ...item,
       mp_name: item.mp_name || item.account_name || '未知公众号',
       publish_time: item.publish_time || item.create_time || '-',
@@ -632,7 +660,6 @@ const initIssourceUrl = () => {
 }
 
 // 监听 issourceUrl 变化并保存到 localStorage
-import { watch } from 'vue'
 watch(issourceUrl, (newValue) => {
   localStorage.setItem('issourceUrl', newValue.toString())
 }, { immediate: false })
@@ -791,6 +818,40 @@ const clear_duplicate_article = () => {
   fetchArticles()
 }
 
+const processedContent = (record: any) => {
+  return ProxyImage(record.content)
+}
+
+const viewArticle = async (record: any, action_type: number = 0) => {
+  loading.value = true
+  try {
+    const article = (await getArticleDetail(record.id, action_type)) as any
+    currentArticle.value = {
+      id: article.id,
+      title: article.title,
+      content: processedContent(article),
+      time: formatDateTime(article.created_at),
+      url: article.url
+    }
+    articleModalVisible.value = true
+    window.location.hash = "topreader"
+    
+    // 创建或更新 Shadow DOM
+    await nextTick()
+    createShadowHost()
+    
+    // 自动标记为已读（仅在从列表点击进入时）
+    if (action_type === 0 && record.is_read !== 1) {
+      await toggleReadStatus(record)
+    }
+  } catch (error) {
+    console.error('获取文章详情错误:', error)
+    Message.error(error as string)
+  } finally {
+    loading.value = false
+  }
+}
+
 const refresh = () => {
   showRefreshModal()
 }
@@ -802,40 +863,8 @@ const showAddModal = () => {
 const handleAddSuccess = () => {
   fetchArticles()
 }
- const processedContent = (record: any) => {
- return ProxyImage(record.content)
- }
-const viewArticle = async (record: any,action_type: number) => {
-  loading.value = true
-  try {
-    // console.log(record)
-    const article = await getArticleDetail(record.id,action_type)
-    currentArticle.value = {
-      id: article.id,
-      title: article.title,
-      content: processedContent(article),
-      time: formatDateTime(article.created_at),
-      url: article.url
-    }
-    articleModalVisible.value = true
-    window.location="#topreader"
-    
-    // 创建或更新 Shadow DOM
-    await nextTick()
-    createShadowHost()
-    
-    // 自动标记为已读（仅在查看当前文章时，不是上一篇/下一篇）
-    if (action_type === 0 && record.is_read !== 1) {
-      await toggleReadStatus(record)
-    }
-  } catch (error) {
-    console.error('获取文章详情错误:', error)
-    Message.error(error)
-  } finally {
-    loading.value = false
-  }
-}
 const currentArticle = ref({
+  id: '',
   title: '',
   content: '',
   time: '',
@@ -905,11 +934,11 @@ onMounted(() => {
 const fetchMpList = async () => {
   mpLoading.value = true
   try {
-    const res = await getSubscriptions({
+    const res = (await getSubscriptions({
       page: mpPagination.value.current - 1,
       pageSize: mpPagination.value.pageSize,
       kw: mpSearchText.value
-    })
+    })) as any
 
     mpList.value = res.list.map(item => ({
       id: item.id || item.mp_id,
@@ -985,20 +1014,7 @@ const deleteMp = async (mpId: string) => {
   }
 }
 
-const toggleMpStatus = async (mpId: string, newStatus: number) => {
-  try {
-    await toggleMpStatusApi(mpId, newStatus);
-    Message.success(newStatus === 0 ? '公众号已禁用' : '公众号已启用');
-    // 更新本地数据
-    const index = mpList.value.findIndex(item => item.id === mpId);
-    if (index !== -1) {
-      mpList.value[index].status = newStatus;
-    }
-  } catch (error) {
-    console.error('更新公众号状态失败:', error);
-    Message.error('更新公众号状态失败');
-  }
-}
+// 公众号状态切换逻辑已在上方定义
 
 const importArticles = () => {
   const input = document.createElement('input');
