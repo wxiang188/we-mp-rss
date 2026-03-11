@@ -145,7 +145,7 @@
               </a-dropdown>
               <a-button type="primary" status="success" @click="handleBatchAnalyze" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-thunderbolt /></template>
-                AI分析
+                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V4-HARDFIX)</span>
               </a-button>
               <a-button type="primary" status="danger" @click="handleBatchDelete" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-delete /></template>
@@ -367,6 +367,7 @@ const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
 const handleBatchAnalyze = async () => {
   if (selectedRowKeys.value.length === 0 || analyzing.value) return
   
+  console.log("DEBUG: handleBatchAnalyze V4-HARDFIX-STABLE triggered. Total:", selectedRowKeys.value.length)
   analyzeModalVisible.value = true
   analyzing.value = true
   analyzePercent.value = 0

@@ -7,8 +7,8 @@ from core.print import print_info, print_error, print_success
 def get_ai_config():
     """获取 AI 配置信息"""
     # 智能读取配置，优先从数据库获取，并清理前后空格/换行
-    raw_url = cfg.get("AI_API_URL", os.environ.get("MINIMAX_API_URL", "https://api.minimax.chat/v1/text/chatcompletion_v2"))
-    url = raw_url.strip() if raw_url else "https://api.minimax.chat/v1/text/chatcompletion_v2"
+    raw_url = cfg.get("AI_API_URL", os.environ.get("MINIMAX_API_URL", "https://api.minimaxi.com/v1/text/chatcompletion_v2"))
+    url = raw_url.strip() if raw_url else "https://api.minimaxi.com/v1/text/chatcompletion_v2"
     
     # 路径自动补全：如果只有域名，补全默认路径
     if url.startswith("http") and "/" not in url.replace("://", ""):
@@ -80,6 +80,9 @@ def analyze_article(title: str, content: str) -> dict:
             connector = "&" if "?" in url else "?"
             url = f"{url}{connector}GroupId={ai_cfg['group_id']}"
 
+        print_info(f"[AI-DEBUG] Final URL: {url}")
+        print_info(f"[AI-DEBUG] Headers: { {k: v if k != 'Authorization' else 'Bearer ***' for k, v in headers.items()} }")
+        
         print_info(f"[AI] 正在使用 {ai_cfg['model']} 给文章 '{title}' 打标...")
         response = requests.post(url, headers=headers, json=payload, timeout=20)
         
