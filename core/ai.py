@@ -29,7 +29,7 @@ def get_ai_config():
         "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
     }
 
-BACKEND_VERSION = "V6-DIAGNOSTIC-STABLE"
+BACKEND_VERSION = "V7-STABLE"
 
 def analyze_article(title: str, content: str) -> dict:
     """
@@ -63,15 +63,14 @@ def analyze_article(title: str, content: str) -> dict:
             "messages": [
                 {
                     "role": "system",
-                    "content": "你是资深的微信公众号运营专家。请仅返回合法的JSON字符串格式数据，包含'category'、'reason'和'summary'三个字段。category的值必须是'便民服务宣传'或'运营活动宣传'或'其他'。'reason'字段请用一句话说明分类理由，'summary'字段请对文章内容做一段30-50字的精简总结。"
+                    "content": "你是资深的微信公众号运营专家。请仅返回合法的JSON字符串格式数据，包含'category'、'reason' and 'summary'三个字段。category的值必须是'便民服务宣传'或'运营活动宣传'或'其他'。'reason'字段请用一句话说明分类理由，'summary'字段请对文章内容做一段30-50字的精简总结。"
                 },
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            "temperature": ai_cfg["temperature"],
-            "response_format": {"type": "json_object"}
+            "temperature": ai_cfg["temperature"]
         }
         
         headers = {
@@ -104,10 +103,20 @@ def analyze_article(title: str, content: str) -> dict:
                 if not ai_text:
                      print_error(f"[AI] 响应中 choices[0].message.content 为空: {res_json}")
                      return {"category": "其他", "summary": "AI 返回内容为空"}
-                # 尝试解析 JSON
+                
+                # 强力解析 JSON
                 try:
                     import json
-                    result = json.loads(ai_text)
+                    # 清理可能存在的 Markdown 代码块包裹
+                    clean_text = ai_text.strip()
+                    if clean_text.startswith("```"):
+                        # 尝试提取 ```json ... ``` 或 ``` ... ``` 内部内容
+                        import re
+                        match = re.search(r'```(?:json)?\s*(.*?)\s*```', clean_text, re.DOTALL)
+                        if match:
+                            clean_text = match.group(1).strip()
+                    
+                    result = json.loads(clean_text)
                     valid_categories = ['便民服务宣传', '运营活动宣传', '其他']
                     cat = result.get('category', '其他')
                     if cat not in valid_categories:
