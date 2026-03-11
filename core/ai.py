@@ -139,10 +139,11 @@ def analyze_article(title: str, content: str) -> dict:
                         "ai_tags": json.dumps(result, ensure_ascii=False)
                     }
                 except json.JSONDecodeError:
-                    print_error(f"[AI] JSON 解析失败, AI 返回的内容: {ai_text}")
+                    print_error(f"[AI] JSON 解析失败, 清洗后的文本: {repr(ai_text)}")
+                    print_error(f"[AI] 原始 API 返回: {json.dumps(res_json, ensure_ascii=False)}")
                     return {"category": "其他", "summary": "AI结果解析异常", "ai_tags": ""}
             else:
-                print_error(f"[AI] API 返回内容异常或格式不符: {res_json}")
+                print_error(f"[AI] API 返回内容异常或格式不符: {json.dumps(res_json, ensure_ascii=False)}")
                 return {"category": "其他", "summary": "AI接口响应空内容", "ai_tags": ""}
         else:
             err_details = response.text
