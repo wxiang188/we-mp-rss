@@ -21,15 +21,20 @@ def get_ai_config():
     if model.lower() in ["minimax", "minimax2.5", "2.5"]:
         model = "MiniMax-Text-01"
         
+    group_id = cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
+    # 核心优化：如果 Group ID 是 "admin" 或空字符串，说明是默认占位符，不应发送给 API
+    if group_id.lower() in ["admin", "none", "null", ""]:
+        group_id = ""
+        
     return {
         "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k")).strip(),
         "url": url,
         "model": model,
         "temperature": float(cfg.get("AI_TEMPERATURE", 0.1)),
-        "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
+        "group_id": group_id
     }
 
-BACKEND_VERSION = "V7-STABLE"
+BACKEND_VERSION = "V8-STABLE"
 
 def analyze_article(title: str, content: str) -> dict:
     """
