@@ -1,11 +1,14 @@
-import os
-import json
-import requests
+from core.config import cfg
 from core.print import print_info, print_error, print_success
 
-# 可以在配置或环境变量中抽取
-MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "sk-cp-n7zD9FL6896yMSkGtLGRou4bXKrjUw74sZgfBB5ESsxvuvqYotLVSDzNaWGb2TZZYBhuTxtxFkpXqM5-dPjEDLmRPgDukCboMI6QdNHswHUJ_vXN7xzNM3c")
-MINIMAX_URL = "https://api.minimax.chat/v1/text/chatcompletion_v2"
+def get_ai_config():
+    """获取 AI 配置信息"""
+    return {
+        "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "")),
+        "url": cfg.get("AI_API_URL", "https://api.minimax.chat/v1/text/chatcompletion_v2"),
+        "model": cfg.get("AI_MODEL", "abab6.5-chat"),
+        "temperature": cfg.get("AI_TEMPERATURE", 0.1)
+    }
 
 def analyze_article(title: str, content: str) -> dict:
     """
@@ -16,11 +19,17 @@ def analyze_article(title: str, content: str) -> dict:
         return {"category": "其他", "summary": "无内容无法判断"}
         
     try:
+        # 获取动态配置
+        ai_cfg = get_ai_config()
+        if not ai_cfg["api_key"]:
+            print_error("[AI] 未配置 AI_API_KEY，请在设置中配置")
+            return {"category": "其他", "summary": "未配置 API Key"}
+
         # 裁剪文章长度防止 Token 超限 (截取前2000个字符用于判断足够了)
         safe_content = content[:2000] if content else ""
         
         prompt = f"""
-请作为一位微信公众号文章的内容审核专家，阅读以下文章的标题和部分内容，判断它主打宣传的分类。
+请作为一位微信公众号文章的内容审核专家，阅读以下文章的标题 and 部分内容，判断它主打宣传的分类。
 你只能从以下三个分类选择其一，并给出一句简短的概括性说明理由：
 ['便民服务宣传', '运营活动宣传', '其他']
 
@@ -29,7 +38,7 @@ def analyze_article(title: str, content: str) -> dict:
 """
 
         payload = {
-            "model": "abab6.5-chat",
+            "model": ai_cfg["model"],
             "messages": [
                 {
                     "role": "system",
@@ -40,16 +49,17 @@ def analyze_article(title: str, content: str) -> dict:
                     "content": prompt
                 }
             ],
+            "temperature": ai_cfg["temperature"],
             "response_format": {"type": "json_object"}
         }
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {MINIMAX_API_KEY}"
+            "Authorization": f"Bearer {ai_cfg['api_key']}"
         }
         
-        print_info(f"[AI] 正在使用 MiniMax 给文章 '{title}' 打标...")
-        response = requests.post(MINIMAX_URL, headers=headers, json=payload, timeout=20)
+        print_info(f"[AI] 正在使用 {ai_cfg['model']} 给文章 '{title}' 打标...")
+        response = requests.post(ai_cfg["url"], headers=headers, json=payload, timeout=20)
         
         if response.status_code == 200:
             res_json = response.json()
@@ -57,6 +67,7 @@ def analyze_article(title: str, content: str) -> dict:
                 ai_text = res_json["choices"][0]["message"]["content"]
                 # 尝试解析 JSON
                 try:
+                    import json
                     result = json.loads(ai_text)
                     valid_categories = ['便民服务宣传', '运营活动宣传', '其他']
                     cat = result.get('category', '其他')

@@ -18,6 +18,7 @@
           <div class="search-bar" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
             <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" style="width: 100%" placeholder="AI 分类" allow-clear @change="handleSearch">
+              <a-option value="">全部</a-option>
               <a-option value="便民服务宣传">便民服务宣传</a-option>
               <a-option value="运营活动宣传">运营活动宣传</a-option>
               <a-option value="其他">其他</a-option>

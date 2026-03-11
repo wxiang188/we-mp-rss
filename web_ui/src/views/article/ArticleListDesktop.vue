@@ -113,6 +113,10 @@
                 <template #icon><icon-scan /></template>
                 刷新授权
               </a-button>
+              <a-button @click="showAiConfig">
+                <template #icon><icon-settings /></template>
+                AI配置
+              </a-button>
               <a-dropdown>
                 <a-button>
                   <template #icon>
@@ -171,6 +175,7 @@
           <div class="search-bar" style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
             <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
+              <a-option value="">全部</a-option>
               <a-option value="便民服务宣传">便民服务宣传</a-option>
               <a-option value="运营活动宣传">运营活动宣传</a-option>
               <a-option value="其他">其他</a-option>
@@ -218,6 +223,25 @@
               <a-button type="primary" @click="handleRefresh">确定</a-button>
             </template>
           </a-modal>
+
+          <!-- AI 配置弹窗 -->
+          <a-modal v-model:visible="aiConfigVisible" title="AI 分析配置" @ok="handleSaveAiConfig">
+            <a-form :model="aiConfigForm" layout="vertical">
+              <a-form-item label="AI API Key" help="设置 AI API 密钥">
+                <a-input-password v-model="aiConfigForm.AI_API_KEY" placeholder="sk-..." />
+              </a-form-item>
+              <a-form-item label="API URL" help="AI 接口地址">
+                <a-input v-model="aiConfigForm.AI_API_URL" placeholder="https://api.minimax.chat/v1/text/chatcompletion_v2" />
+              </a-form-item>
+              <a-form-item label="模型名称" help="使用的模型 ID">
+                <a-input v-model="aiConfigForm.AI_MODEL" placeholder="abab6.5-chat" />
+              </a-form-item>
+              <a-form-item label="Temperature" help="采样温度 (0.1 ~ 1.0)">
+                <a-input-number v-model="aiConfigForm.AI_TEMPERATURE" :min="0.1" :max="1.0" :step="0.1" />
+              </a-form-item>
+            </a-form>
+          </a-modal>
+
           <a-modal id="article-model" v-model:visible="articleModalVisible" 
             placement="left" :footer="false" :fullscreen="false" @before-close="resetScrollPosition">
             <h2 id="topreader">{{ currentArticle.title }}</h2>
@@ -248,6 +272,45 @@ import axios from 'axios'
 import { IconApps, IconAt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconThunderbolt } from '@arco-design/web-vue/es/icon'
 import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
+import { Message } from '@arco-design/web-vue'
+
+const aiConfigVisible = ref(false)
+const aiConfigForm = ref({
+  AI_API_KEY: '',
+  AI_API_URL: '',
+  AI_MODEL: '',
+  AI_TEMPERATURE: 0.1
+})
+
+const showAiConfig = async () => {
+  try {
+    const res = await axios.get('/wx/configs')
+    const configs = res.data.data || []
+    configs.forEach((item: any) => {
+      if (aiConfigForm.value.hasOwnProperty(item.config_key)) {
+        (aiConfigForm.value as any)[item.config_key] = item.config_value
+      }
+    })
+    aiConfigVisible.value = true
+  } catch (err) {
+    Message.error('获取配置失败')
+  }
+}
+
+const handleSaveAiConfig = async () => {
+  try {
+    for (const key in aiConfigForm.value) {
+      await axios.post('/wx/configs', {
+        config_key: key,
+        config_value: (aiConfigForm.value as any)[key].toString()
+      })
+    }
+    Message.success('配置已保存')
+    aiConfigVisible.value = false
+  } catch (err) {
+    Message.error('保存配置失败')
+  }
+}
 import ExportModal from '@/components/ExportModal.vue'
 import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
 import { inject } from 'vue'
@@ -332,7 +395,7 @@ const handleBatchAnalyze = async () => {
       addLog(`❌ 分析失败: ${title} (${err.message || '未知错误'})`, 'error')
     }
     
-    analyzePercent.value = Math.round(((i + 1) / selectedRowKeys.value.length) * 100)
+    analyzePercent.value = Math.min(100, Math.round(((i + 1) / selectedRowKeys.value.length) * 100))
   }
   
   analyzing.value = false
@@ -394,7 +457,7 @@ const columns = [
   {
     title: '文章标题',
     dataIndex: 'title',
-    width: window.innerWidth - 1100,
+    minWidth: 300,
     ellipsis: true,
     render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
       record.ai_category ? h('span', {
