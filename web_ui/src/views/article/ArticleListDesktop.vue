@@ -738,12 +738,13 @@ const importMPS = async () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
       if (!file) return;
       const formData = new FormData();
       formData.append('file', file);
-      const response = await ImportMPS(formData);
+      const response = await ImportMPS(formData) as any;
       Message.info(response?.message || "导入成功");
     };
     input.click();
@@ -753,7 +754,8 @@ const importMPS = async () => {
 };
 
 const openRssFeed = () => {
-  const format = ['rss', 'atom', 'json', 'md', 'txt'].includes(rssFormat.value)
+  const validFormats = ['rss', 'atom', 'json', 'md', 'txt'];
+  const format = validFormats.includes(rssFormat.value)
     ? rssFormat.value
     : 'atom'
   let search = ""
@@ -1029,8 +1031,9 @@ const importArticles = () => {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
-  input.onchange = async (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
+  input.onchange = async (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
     if (!file) return;
 
     try {
