@@ -155,7 +155,7 @@
           </template>
         </a-page-header>
 
-        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V11-FIXED)" :footer="false" :mask-closable="false">
+        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V12-STABLE)" :footer="false" :mask-closable="false">
           <div style="margin-bottom: 20px;">
             <a-progress :percent="analyzePercent" :status="analyzeStatus" />
             <div style="margin-top: 10px; text-align: center;">{{ analyzeProgressText }}</div>

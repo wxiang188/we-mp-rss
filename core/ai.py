@@ -8,7 +8,7 @@ from core.print import print_info, print_error
 AI_API_KEY = "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k"
 AI_ENDPOINT = "https://api.minimax.chat/anthropic/v1/messages"
 AI_MODEL = "MiniMax-M2.5"
-BACKEND_VERSION = "V11-ANTHROPIC-FIXED"
+BACKEND_VERSION = "V12-ANTHROPIC-STABLE"
 
 def analyze_article(title: str, content: str) -> dict:
     """
@@ -50,12 +50,23 @@ def analyze_article(title: str, content: str) -> dict:
         
         if response.status_code == 200:
             res_json = response.json()
-            # Anthropic 协议的响应在 content[0].text
+            print_info(f"[AI-DEBUG] Response: {json.dumps(res_json, ensure_ascii=False)}")
+            
+            # Anthropic 协议的响应在 content 列表中，可能包含 thinking 和 text 块
             content_list = res_json.get("content", [])
-            if content_list and len(content_list) > 0:
-                ai_text = content_list[0].get("text", "")
-                if not ai_text:
-                    return {"category": "其他", "summary": "AI 返回文本为空"}
+            ai_text = ""
+            for block in content_list:
+                if block.get("type") == "text":
+                    ai_text = block.get("text", "")
+                    break
+            
+            if not ai_text:
+                # 备选：如果没找到 text 类型，尝试取第一个块的 text (兼容老逻辑)
+                if content_list and len(content_list) > 0:
+                    ai_text = content_list[0].get("text", "")
+            
+            if not ai_text:
+                return {"category": "其他", "summary": "AI 返回文本内容为空"}
                 
                 # 强力解析 JSON（兼容 Markdown 代码块）
                 try:
