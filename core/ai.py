@@ -15,9 +15,9 @@ def get_ai_config():
         url = url.rstrip("/") + "/v1/text/chatcompletion_v2"
         
     return {
-        "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "")).strip(),
+        "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k")).strip(),
         "url": url,
-        "model": cfg.get("AI_MODEL", "abab6.5-chat").strip(),
+        "model": cfg.get("AI_MODEL", "MiniMax-Text-01").strip(),
         "temperature": float(cfg.get("AI_TEMPERATURE", 0.1)),
         "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
     }
