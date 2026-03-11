@@ -4,7 +4,7 @@ import requests
 from core.config import cfg
 from core.print import print_info, print_error, print_success, print_warning
 
-MINIMAX_URL = "https://api.minimax.chat/v1/text/chatcompletion_v2"
+MINIMAX_URL = "https://api.minimaxi.com/anthropic/v1/messages"
 
 def get_system_prompt():
     """
@@ -79,12 +79,10 @@ def analyze_article(title: str, content: str) -> dict:
 """
         
         payload = {
-            "model": "abab6.5s-chat",
+            "model": "MiniMax-M2.5",
+            "max_tokens": 4096,
+            "system": get_system_prompt(),
             "messages": [
-                {
-                    "role": "system",
-                    "content": get_system_prompt()
-                },
                 {
                     "role": "user",
                     "content": user_content
@@ -96,7 +94,8 @@ def analyze_article(title: str, content: str) -> dict:
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01"
         }
         
         print_info(f"[AI] 正在使用 MiniMax 给文章 '{title[:30]}' 打标...")
@@ -105,16 +104,9 @@ def analyze_article(title: str, content: str) -> dict:
         if response.status_code == 200:
             res_json = response.json()
             
-            # MiniMax 常常在 HTTP 200 中返回业务级错误
-            base_resp = res_json.get("base_resp", {})
-            if base_resp and base_resp.get("status_code", 0) != 0:
-                err_msg = base_resp.get("status_msg", "未知业务错误")
-                print_error(f"[AI] API 返回业务错误: {err_msg}")
-                return {"category": "其他", "summary": f"API报错: {err_msg}", "ai_tags": ""}
-                
-            choices = res_json.get("choices")
-            if choices and isinstance(choices, list) and len(choices) > 0:
-                ai_text = choices[0].get("message", {}).get("content", "")
+            content_blocks = res_json.get("content")
+            if content_blocks and isinstance(content_blocks, list) and len(content_blocks) > 0:
+                ai_text = content_blocks[0].get("text", "")
                 
                 # 兼容部分模型可能会包裹 Markdown 格式
                 ai_text = ai_text.strip()
@@ -153,9 +145,15 @@ def analyze_article(title: str, content: str) -> dict:
                 print_error(f"[AI] API 返回内容异常或格式不符: {res_json}")
                 return {"category": "其他", "summary": "AI接口响应空内容", "ai_tags": ""}
         else:
-            print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {response.text}")
-            return {"category": "其他", "summary": f"AI接口状态异常: {response.status_code}", "ai_tags": ""}
-             
+            err_details = response.text
+            try:
+                err_json = response.json()
+                if "error" in err_json:
+                    err_details = err_json["error"].get("message", err_details)
+            except Exception:
+                pass
+            print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {err_details}")
+            return {"category": "其他", "summary": f"AI接口API异常: {response.status_code}", "ai_tags": ""}
     except Exception as e:
         print_error(f"[AI] 分析文章时发生系统错误: {str(e)}")
         return {"category": "其他", "summary": "调用大模型失败", "ai_tags": ""}
