@@ -168,3 +168,7 @@ cascade:
   heartbeat_interval: ${CASCADE_HEARTBEAT_INTERVAL:-60}
   # 子节点任务拉取间隔（秒），默认30秒
   task_poll_interval: ${CASCADE_TASK_POLL_INTERVAL:-30}
+  
+minimax:
+  # MiniMax API Key，优先从环境变量 MINIMAX_API_KEY 获取
+  api_key: "${MINIMAX_API_KEY}"

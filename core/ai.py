@@ -1,11 +1,15 @@
 import os
 import json
 import requests
-from core.print import print_info, print_error, print_success
+from core.config import cfg
+from core.print import print_info, print_error, print_success, print_warning
 
-# 可以在配置或环境变量中抽取
-MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "sk-cp-n7zD9FL6896yMSkGtLGRou4bXKrjUw74sZgfBB5ESsxvuvqYotLVSDzNaWGb2TZZYBhuTxtxFkpXqM5-dPjEDLmRPgDukCboMI6QdNHswHUJ_vXN7xzNM3c")
+# 支持从环境变量 MINIMAX_API_KEY 获取，或从 config.yaml 的 minimax.api_key 读取
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY") or cfg.get("minimax.api_key")
 MINIMAX_URL = "https://api.minimax.chat/v1/text/chatcompletion_v2"
+
+if not MINIMAX_API_KEY:
+    print_warning("[AI] 未检测到 MINIMAX_API_KEY。请在环境变量或 config.yaml (minimax.api_key) 中配置。")
 
 def get_system_prompt():
     """
