@@ -22,7 +22,12 @@ def list_configs(
         # 1. 获取 YAML 中的初始配置
         from core.yaml_db import YamlDB
         yaml_configs = YamlDB.store_config_to_list(cfg._config)
-        configs_dict = {item["config_key"]: item for item in yaml_configs}
+        # 注意: YamlDB.store_config_to_list 返回的是模型对象列表，需要用 . 访问属性并转为字典
+        configs_dict = {item.config_key: {
+            "config_key": item.config_key,
+            "config_value": item.config_value,
+            "description": item.description or "系统配置项"
+        } for item in yaml_configs}
 
         # 2. 获取数据库中的配置并覆盖 YAML 中的值
         db_configs = db.query(ConfigManagement).all()
@@ -65,7 +70,11 @@ def get_config(
         config = db.query(ConfigManagement).filter(ConfigManagement.config_key == config_key).first()
         if not config:
             raise HTTPException(status_code=404, detail="Config not found")
-        return success_response(data=config)
+        return success_response(data={
+            "config_key": config.config_key,
+            "config_value": config.config_value,
+            "description": config.description
+        })
     except Exception as e:
         return error_response(code=500, message=str(e))
 
@@ -102,7 +111,11 @@ def save_config(
             
         db.commit()
         db.refresh(db_config)
-        return success_response(data=db_config)
+        return success_response(data={
+            "config_key": db_config.config_key,
+            "config_value": db_config.config_value,
+            "description": db_config.description
+        })
     except Exception as e:
         db.rollback()
         return error_response(code=500, message=str(e))
@@ -127,7 +140,11 @@ def update_config(
         
         db.commit()
         db.refresh(db_config)
-        return success_response(data=db_config)
+        return success_response(data={
+            "config_key": db_config.config_key,
+            "config_value": db_config.config_value,
+            "description": db_config.description
+        })
     except Exception as e:
         db.rollback()
         return error_response(code=500, message=str(e))
