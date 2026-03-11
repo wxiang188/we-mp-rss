@@ -4,12 +4,7 @@ import requests
 from core.config import cfg
 from core.print import print_info, print_error, print_success, print_warning
 
-# 支持从环境变量 MINIMAX_API_KEY 获取，或从 config.yaml 的 minimax.api_key 读取
-MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY") or cfg.get("minimax.api_key")
 MINIMAX_URL = "https://api.minimax.chat/v1/text/chatcompletion_v2"
-
-if not MINIMAX_API_KEY:
-    print_warning("[AI] 未检测到 MINIMAX_API_KEY。请在环境变量或 config.yaml (minimax.api_key) 中配置。")
 
 def get_system_prompt():
     """
@@ -67,6 +62,12 @@ def analyze_article(title: str, content: str) -> dict:
         return {"category": "其他", "summary": "无内容无法判断", "ai_tags": ""}
         
     try:
+        # 动态读取 API Key，支持热重载
+        api_key = os.environ.get("MINIMAX_API_KEY") or cfg.get("minimax.api_key")
+        if not api_key:
+            print_error("[AI] 未检测到 MINIMAX_API_KEY。请在环境变量或 config.yaml (minimax.api_key) 中配置。")
+            return {"category": "其他", "summary": "未配置AI大模型秘钥", "ai_tags": ""}
+            
         # 裁剪文章长度防止 Token 超限（增大到4000字符提升分析质量）
         safe_content = content[:4000] if content else ""
         
@@ -96,7 +97,7 @@ def analyze_article(title: str, content: str) -> dict:
         
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {MINIMAX_API_KEY}"
+            "Authorization": f"Bearer {api_key}"
         }
         
         print_info(f"[AI] 正在使用 MiniMax 给文章 '{title[:30]}' 打标...")
