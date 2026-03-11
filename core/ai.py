@@ -104,9 +104,14 @@ def analyze_article(title: str, content: str) -> dict:
         if response.status_code == 200:
             res_json = response.json()
             
-            content_blocks = res_json.get("content")
-            if content_blocks and isinstance(content_blocks, list) and len(content_blocks) > 0:
-                ai_text = content_blocks[0].get("text", "")
+            content_blocks = res_json.get("content", [])
+            ai_text = ""
+            for block in content_blocks:
+                if block.get("type") == "text":
+                    ai_text = block.get("text", "")
+                    break
+            
+            if ai_text:
                 
                 # 兼容部分模型可能会包裹 Markdown 格式
                 ai_text = ai_text.strip()
