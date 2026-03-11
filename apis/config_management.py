@@ -55,25 +55,32 @@ class ConfigManagementCreate(BaseModel):
     config_value: str
     description: Optional[str] = None
 
-@router.post("", summary="创建配置项")
-def create_config(
+@router.post("", summary="保存或更新配置项")
+def save_config(
     config_data: ConfigManagementCreate = Body(...),
     current_user: dict = Depends(get_current_user_or_ak)
 ):
     db=DB.get_session()
-    """创建配置项"""
+    """保存或更新配置项 (Upsert)"""
     try:
         # 检查config_key是否已存在
         existing_config = db.query(ConfigManagement).filter(ConfigManagement.config_key == config_data.config_key).first()
-        if existing_config:
-            raise HTTPException(status_code=400, detail="Config with this key already exists")
         
-        db_config = ConfigManagement(
-            config_key=config_data.config_key,
-            config_value=config_data.config_value,
-            description=config_data.description
-        )
-        db.add(db_config)
+        if existing_config:
+            # 更新已有配置
+            existing_config.config_value = config_data.config_value
+            if config_data.description:
+                existing_config.description = config_data.description
+            db_config = existing_config
+        else:
+            # 创建新配置
+            db_config = ConfigManagement(
+                config_key=config_data.config_key,
+                config_value=config_data.config_value,
+                description=config_data.description or "AI 配置项"
+            )
+            db.add(db_config)
+            
         db.commit()
         db.refresh(db_config)
         return success_response(data=db_config)

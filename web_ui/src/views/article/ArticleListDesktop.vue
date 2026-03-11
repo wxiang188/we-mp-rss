@@ -265,14 +265,20 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, h, nextTick, watch, computed, inject } from 'vue'
 import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
-import { ref, onMounted, h, nextTick, watch, computed } from 'vue'
-import axios from 'axios'
+import http from '@/api/http'
 import { IconApps, IconAt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconThunderbolt } from '@arco-design/web-vue/es/icon'
 import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
-import { Message } from '@arco-design/web-vue'
+import { Message, Modal } from '@arco-design/web-vue'
+import ExportModal from '@/components/ExportModal.vue'
+import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi, deleteMpApi } from '@/api/subscription'
+import { formatDateTime, formatTimestamp } from '@/utils/date'
+import router from '@/router'
+import TextIcon from '@/components/TextIcon.vue'
+import { ProxyImage } from '@/utils/constants'
 
 const aiConfigVisible = ref(false)
 const aiConfigForm = ref({
@@ -284,8 +290,8 @@ const aiConfigForm = ref({
 
 const showAiConfig = async () => {
   try {
-    const res = await axios.get('/wx/configs')
-    const configs = res.data.data || []
+    const res = await http.get('/wx/configs')
+    const configs = (res as any).list || []
     configs.forEach((item: any) => {
       if (aiConfigForm.value.hasOwnProperty(item.config_key)) {
         (aiConfigForm.value as any)[item.config_key] = item.config_value
@@ -300,7 +306,7 @@ const showAiConfig = async () => {
 const handleSaveAiConfig = async () => {
   try {
     for (const key in aiConfigForm.value) {
-      await axios.post('/wx/configs', {
+      await http.post('/wx/configs', {
         config_key: key,
         config_value: (aiConfigForm.value as any)[key].toString()
       })
@@ -311,15 +317,6 @@ const handleSaveAiConfig = async () => {
     Message.error('保存配置失败')
   }
 }
-import ExportModal from '@/components/ExportModal.vue'
-import { getSubscriptions, UpdateMps, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
-import { inject } from 'vue'
-import { Message, Modal } from '@arco-design/web-vue'
-import { formatDateTime, formatTimestamp } from '@/utils/date'
-import router from '@/router'
-import { deleteMpApi } from '@/api/subscription'
-import TextIcon from '@/components/TextIcon.vue'
-import { ProxyImage } from '@/utils/constants'
 
 const articles = ref([])
 const loading = ref(false)
