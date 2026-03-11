@@ -16,13 +16,20 @@ def get_ai_config():
         domain = url.split("//")[-1].split("/")[0]
         url = f"https://{domain}/v1/text/chatcompletion_v2"
         
+    model = cfg.get("AI_MODEL", "MiniMax-Text-01").strip()
+    # 核心纠偏：防止用户填入 "minimax" 等无效模型名。MiniMax 2.5 必须使用完整 ID。
+    if model.lower() in ["minimax", "minimax2.5", "2.5"]:
+        model = "MiniMax-Text-01"
+        
     return {
         "api_key": cfg.get("AI_API_KEY", os.environ.get("MINIMAX_API_KEY", "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k")).strip(),
         "url": url,
-        "model": cfg.get("AI_MODEL", "MiniMax-Text-01").strip(),
+        "model": model,
         "temperature": float(cfg.get("AI_TEMPERATURE", 0.1)),
         "group_id": cfg.get("AI_GROUP_ID", os.environ.get("MINIMAX_GROUP_ID", "")).strip()
     }
+
+BACKEND_VERSION = "V6-DIAGNOSTIC-STABLE"
 
 def analyze_article(title: str, content: str) -> dict:
     """
@@ -82,6 +89,7 @@ def analyze_article(title: str, content: str) -> dict:
             connector = "&" if "?" in url else "?"
             url = f"{url}{connector}GroupId={ai_cfg['group_id']}"
 
+        print_info(f"[AI-DEBUG] Backend version: {BACKEND_VERSION}")
         print_info(f"[AI-DEBUG] Final URL: {url}")
         print_info(f"[AI-DEBUG] Headers: { {k: v if k != 'Authorization' else 'Bearer ***' for k, v in headers.items()} }")
         
