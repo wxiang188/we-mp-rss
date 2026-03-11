@@ -1,108 +1,137 @@
 import os
-import requests
 import json
-import re
-from core.print import print_info, print_error
+import requests
+from core.print import print_info, print_error, print_success
 
-# 核心配置：V13 饱和式适配版
-AI_API_KEY = "sk-cp-JtBuPOiHRCgWCPYE7XNcosN5x0BeHpANLEMSXlwUPpZEUuHTmAg85b8-liwq4wqIFgYjdGbAV8DrhsV7mgk1zjb2qwSDs-LD8R1_yaGG9pzHCfNlYcC9R_k"
-# 切换为官方文档推荐的域名
-AI_ENDPOINT = "https://api.minimaxi.com/anthropic/v1/messages"
-AI_MODEL = "MiniMax-M2.5"
-BACKEND_VERSION = "V13-ANTHROPIC-ULTIMATE"
+# 可以在配置或环境变量中抽取
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "sk-cp-n7zD9FL6896yMSkGtLGRou4bXKrjUw74sZgfBB5ESsxvuvqYotLVSDzNaWGb2TZZYBhuTxtxFkpXqM5-dPjEDLmRPgDukCboMI6QdNHswHUJ_vXN7xzNM3c")
+MINIMAX_URL = "https://api.minimax.chat/v1/text/chatcompletion_v2"
+
+def get_system_prompt():
+    """
+    专门为 API 自动化调用优化的 System Prompt
+    标签体系精简为「产品功能」「运营活动」「其他」三大类
+    """
+    return """
+你现在是一位拥有10年经验的「资深政务便民APP产品与运营专家」。你精通数字政府建设、一网通办等业务逻辑。
+你的任务是阅读我提供的【竞品公众号文章内容】，进行文章内容总结，判断文章属于哪个分类，并给出打标理由。
+
+【分类体系】
+文章只能属于以下三个分类中的一个：
+1. 产品功能 —— 文章主要介绍或宣传APP的某个具体功能、服务上线、技术升级等内容
+2. 运营活动 —— 文章主要介绍促销活动、补贴发放、抽奖互动、以旧换新、积分兑换等运营类内容
+3. 其他 —— 不属于以上两类的内容（如纯政策通知、企业新闻、品牌宣传等）
+
+【输出格式要求】
+你必须且只能输出一个合法的 JSON 对象，不要包含任何 Markdown 标记（如 ```json ），不要包含任何额外的解释性文本。
+JSON 结构必须严格如下所示：
+
+{
+  "basic_info": {
+    "category": "产品功能 或 运营活动 或 其他",
+    "core_theme": "一句话概括文章核心目的",
+    "business_area": "涉及业务领域，如公积金、交通出行等",
+    "article_summary": "文章的全面总结（100-150字左右），概括背景、核心动作和预期效果"
+  },
+  "tag_reason": "结合文章内容，说明为什么归入该分类的详细理由",
+  "product_analysis": {
+    "has_product_content": true,
+    "function_name": "提炼政务/便民功能名称，无则填空",
+    "pain_points": "解决的市民/企业痛点，无则填空",
+    "interaction_flow": "简述APP上的操作路径，无则填空"
+  },
+  "operation_analysis": {
+    "has_operation_content": true,
+    "rules": "拆解市民参与路径和门槛，无则填空",
+    "incentives": "具体的补贴形式/激励机制，无则填空",
+    "strategy_purpose": "策略目的推测，无则填空"
+  },
+  "takeaways": [
+    "借鉴与启发建议1",
+    "借鉴与启发建议2"
+  ]
+}
+"""
 
 def analyze_article(title: str, content: str) -> dict:
     """
-    使用 MiniMax Anthropic 兼容接口进行文章分析总结。
+    调用 MiniMax 大模型接口，对文章进行结构化分析打标。
+    分类为：产品功能、运营活动、其他。
+    返回包含 category、summary 以及完整分析结果的字典。
     """
+    if not title and not content:
+        return {"category": "其他", "summary": "无内容无法判断", "ai_tags": ""}
+        
     try:
-        prompt = f"标题: {title}\n内容: {content[:1000]}"
+        # 裁剪文章长度防止 Token 超限（增大到4000字符提升分析质量）
+        safe_content = content[:4000] if content else ""
+        
+        user_content = f"""
+请分析以下竞品公众号文章：
+
+【文章标题】{title}
+【文章内容】{safe_content}
+"""
         
         payload = {
-            "model": AI_MODEL,
-            "max_tokens": 1024,
-            "temperature": 0.1,
-            "system": "你是资深的微信公众号运营专家。请仅返回合法的JSON字符串格式数据，包含'category'、'reason'和'summary'三个字段。category的值必须是'便民服务宣传'或'运营活动宣传'或'其他'。'reason'字段请用一句话说明分类理由，'summary'字段请对文章内容做一段30-50字的精简总结。",
+            "model": "abab6.5s-chat",
             "messages": [
                 {
+                    "role": "system",
+                    "content": get_system_prompt()
+                },
+                {
                     "role": "user",
-                    "content": [{"type": "text", "text": prompt}]
+                    "content": user_content
                 }
-            ]
+            ],
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "response_format": {"type": "json_object"}
         }
         
         headers = {
-            "x-api-key": AI_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {MINIMAX_API_KEY}"
         }
-
-        print_info(f"[AI-DEBUG] Version: {BACKEND_VERSION}")
-        print_info(f"[AI-DEBUG] URL: {AI_ENDPOINT}")
         
-        response = requests.post(AI_ENDPOINT, headers=headers, json=payload, timeout=25)
+        print_info(f"[AI] 正在使用 MiniMax 给文章 '{title[:30]}' 打标...")
+        response = requests.post(MINIMAX_URL, headers=headers, json=payload, timeout=60)
         
         if response.status_code == 200:
             res_json = response.json()
-            # 这里的打印非常关键，请注意查看后台日志
-            print_info(f"[AI-DEBUG] Raw Response: {json.dumps(res_json, ensure_ascii=False)}")
-            
-            ai_text = ""
-            
-            # 策略A：标准 Anthropic 格式提取 (content 列表)
-            content_list = res_json.get("content", [])
-            if isinstance(content_list, list):
-                for block in content_list:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        ai_text = block.get("text", "")
-                        break
-                if not ai_text and content_list:
-                    # 备选：如果只有内容块但没标 type
-                    first_block = content_list[0]
-                    if isinstance(first_block, dict):
-                        ai_text = first_block.get("text", "")
-                    elif isinstance(first_block, str):
-                        ai_text = first_block
-
-            # 策略B：备选提取 (某些代理或变体可能返回 choices)
-            if not ai_text and "choices" in res_json:
-                 choices = res_json.get("choices", [])
-                 if choices:
-                     ai_text = choices[0].get("message", {}).get("content", "")
-
-            # 策略C：直接提取顶级 text 字段
-            if not ai_text:
-                ai_text = res_json.get("text", "")
-
-            if not ai_text:
-                error_msg = f"无法从响应中提取文本。结构: {json.dumps(res_json)[:200]}"
-                print_error(f"[AI] {error_msg}")
-                return {"category": "其他", "summary": error_msg}
-            
-            # 强力解析 JSON
-            try:
-                clean_text = ai_text.strip()
-                if clean_text.startswith("```"):
-                    match = re.search(r'```(?:json)?\s*(.*?)\s*```', clean_text, re.DOTALL)
-                    if match:
-                        clean_text = match.group(1).strip()
-                
-                # 处理可能的转义字符问题
-                result = json.loads(clean_text)
-                return {
-                    "category": result.get("category", "其他"),
-                    "reason": result.get("reason", ""),
-                    "summary": result.get("summary", "")
-                }
-            except Exception as e:
-                print_error(f"[AI] JSON 解析失败: {e}, 响应文本提示: {ai_text[:100]}")
-                # 解析失败则返回原始内容的前 100 字
-                return {"category": "其他", "summary": ai_text[:100]}
+            if "choices" in res_json and len(res_json["choices"]) > 0:
+                ai_text = res_json["choices"][0]["message"]["content"]
+                try:
+                    result = json.loads(ai_text)
+                    
+                    # 提取分类（兼容旧字段）
+                    valid_categories = ['产品功能', '运营活动', '其他']
+                    basic_info = result.get('basic_info', {})
+                    cat = basic_info.get('category', '其他')
+                    if cat not in valid_categories:
+                        cat = '其他'
+                    
+                    # 提取摘要（兼容旧字段）
+                    summary = basic_info.get('article_summary', '') or basic_info.get('core_theme', '')
+                    if not summary:
+                        summary = result.get('tag_reason', 'AI分析完成')
+                    
+                    return {
+                        "category": cat,
+                        "summary": summary[:500],
+                        "ai_tags": json.dumps(result, ensure_ascii=False)
+                    }
+                except json.JSONDecodeError:
+                    print_error(f"[AI] JSON 解析失败, AI 返回的内容: {ai_text}")
+                    return {"category": "其他", "summary": "AI结果解析异常", "ai_tags": ""}
+            else:
+                print_error(f"[AI] API 返回内容异常: {res_json}")
+                return {"category": "其他", "summary": "AI接口响应空内容", "ai_tags": ""}
         else:
-            print_error(f"[AI] 调用失败 {response.status_code}: {response.text}")
-            return {"category": "其他", "summary": f"API 状态码: {response.status_code}"}
-            
+            print_error(f"[AI] API 调用失败, 状态码: {response.status_code}, 详情: {response.text}")
+            return {"category": "其他", "summary": f"AI接口状态异常: {response.status_code}", "ai_tags": ""}
+             
     except Exception as e:
-        import traceback
-        print_error(f"[AI] 系统错误: {str(e)}\n{traceback.format_exc()}")
-        return {"category": "其他", "summary": f"系统错误: {str(e)}"}
+        print_error(f"[AI] 分析文章时发生系统错误: {str(e)}")
+        return {"category": "其他", "summary": "调用大模型失败", "ai_tags": ""}

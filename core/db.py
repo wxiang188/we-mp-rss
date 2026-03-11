@@ -52,7 +52,7 @@ class Db:
                                      )
             self.session_factory=self.get_session_factory()
             
-            # 自动升级 SQLite 表结构 (追加 ai_category 和 ai_summary 字段)
+            # 自动升级 SQLite 表结构 (追加 ai_category, ai_summary, ai_tags 字段)
             try:
                 from sqlalchemy import inspect, text
                 inspector = inspect(self.engine)
@@ -65,9 +65,9 @@ class Db:
                         if 'ai_summary' not in columns:
                             conn.execute(text("ALTER TABLE articles ADD COLUMN ai_summary VARCHAR(500) DEFAULT ''"))
                             print_success("Auto-migrated: added ai_summary to articles table")
-                        if 'ai_reason' not in columns:
-                            conn.execute(text("ALTER TABLE articles ADD COLUMN ai_reason VARCHAR(1000) DEFAULT ''"))
-                            print_success("Auto-migrated: added ai_reason to articles table")
+                        if 'ai_tags' not in columns:
+                            conn.execute(text("ALTER TABLE articles ADD COLUMN ai_tags TEXT DEFAULT ''"))
+                            print_success("Auto-migrated: added ai_tags to articles table")
             except Exception as migrate_e:
                 print_error(f"Migration error: {migrate_e}")
         except Exception as e:
@@ -191,14 +191,14 @@ class Db:
             from core.models.base import DATA_STATUS
             art.status=DATA_STATUS.ACTIVE
             
-            # --- AI 文章分类打标 ---
+            # --- AI 文章结构化分析打标 ---
             if not getattr(art, 'ai_category', None) or art.ai_category == '其他':
                 try:
                     from core.ai import analyze_article
                     ai_res = analyze_article(art.title, art.content_html or art.content or art.description)
                     art.ai_category = ai_res.get('category', '其他')
-                    art.ai_reason = ai_res.get('reason', '')
                     art.ai_summary = ai_res.get('summary', '')
+                    art.ai_tags = ai_res.get('ai_tags', '')
                 except Exception as ai_e:
                     print_warning(f"AI Category analysis failed for article {art.id}: {ai_e}")
             # ---------------------
