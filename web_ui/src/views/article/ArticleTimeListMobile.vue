@@ -19,8 +19,8 @@
             <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" style="width: 100%" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
-              <a-option value="便民服务宣传">便民服务宣传</a-option>
-              <a-option value="运营活动宣传">运营活动宣传</a-option>
+              <a-option value="产品功能">产品功能</a-option>
+              <a-option value="运营活动">运营活动</a-option>
               <a-option value="其他">其他</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
@@ -40,7 +40,7 @@
                     <a-typography-text strong :heading="1"><strong>{{ item.title }}</strong></a-typography-text>
                     <div v-if="item.ai_category" style="margin-top:2px; display: flex; flex-direction: column; gap: 2px;">
                       <div style="display: flex; align-items: center; gap: 4px;">
-                        <a-tag :color="item.ai_category === '便民服务宣传' ? 'green' : (item.ai_category === '运营活动宣传' ? 'orange' : 'gray')" size="small">
+                        <a-tag :color="item.ai_category === '产品功能' ? 'arcoblue' : (item.ai_category === '运营活动' ? 'gold' : 'gray')" size="small">
                           {{ item.ai_category }}
                         </a-tag>
                         <span style="font-size:11px; color:var(--color-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
