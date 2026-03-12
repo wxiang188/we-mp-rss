@@ -16,8 +16,10 @@ jobs:
         with:
           node-version: '20.18.3' # 替换为你的项目所需的 Node.js 版本
       - name: Install dependencies
+        working-directory: web_ui
         run: npm install
       - name: Build project
+        working-directory: web_ui
         run: npm run build
       - name: Deploy to GitHub Pages
         uses: crazy-max/ghaction-github-pages@v2
