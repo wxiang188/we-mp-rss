@@ -176,9 +176,7 @@
             <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
-              <a-option value="便民服务宣传">便民服务宣传</a-option>
-              <a-option value="运营活动宣传">运营活动宣传</a-option>
-              <a-option value="其他">其他</a-option>
+              <a-option v-for="(cfg, cat) in AI_CATEGORY_CONFIG" :key="cat" :value="cat">{{ cat }}</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear style="width: 240px" />
@@ -354,6 +352,13 @@ const analyzeLogs = ref([])
 const analyzeStatus = ref<'normal' | 'success' | 'warning' | 'danger'>('normal')
 const logContainer = ref(null)
 
+// AI 分类配置与颜色映射
+const AI_CATEGORY_CONFIG: Record<string, { color: string, tagColor: string }> = {
+  '产品功能': { color: 'arcoblue', tagColor: 'var(--color-primary-light-1)' },
+  '运营活动': { color: 'gold', tagColor: 'var(--color-warning-light-1)' },
+  '其他': { color: 'gray', tagColor: 'var(--color-fill-3)' }
+}
+
 const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
   const time = new Date().toLocaleTimeString()
   analyzeLogs.value.push({ time, msg, type })
@@ -366,24 +371,33 @@ const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
 
 const handleBatchAnalyze = async () => {
   if (selectedRowKeys.value.length === 0 || analyzing.value) return
-  
-  console.log("DEBUG: handleBatchAnalyze V4-HARDFIX-STABLE triggered. Total:", selectedRowKeys.value.length)
+
+  console.log("DEBUG: handleBatchAnalyze V5-FIX triggered. Total:", selectedRowKeys.value.length)
   analyzeModalVisible.value = true
   analyzing.value = true
   analyzePercent.value = 0
   analyzeLogs.value = []
   analyzeStatus.value = 'normal'
-  
+
   // 冻结当前选中的 ID，防止循环过程中被界面修改影响计算
   const taskIds = [...selectedRowKeys.value]
-  const total = taskIds.length
-  
+  let total = taskIds.length
+
+  // 安全检查：确保 total 有效
+  if (total <= 0) {
+    analyzePercent.value = 100
+    analyzing.value = false
+    analyzeStatus.value = 'warning'
+    analyzeProgressText.value = '没有可分析的文章'
+    return
+  }
+
   analyzeProgressText.value = `准备分析 ${total} 篇文章...`
   addLog(`开始批量分析任务，共 ${total} 篇文章`)
-  
+
   let successCount = 0
   let failCount = 0
-  
+
   try {
     for (let i = 0; i < total; i++) {
       // 检查分析任务是否因关闭弹窗而中断
@@ -395,10 +409,10 @@ const handleBatchAnalyze = async () => {
       const articleId = taskIds[i]
       const article = articles.value.find(a => a.id === articleId)
       const title = article ? article.title : articleId
-      
+
       analyzeProgressText.value = `正在分析 (${i + 1}/${total}): ${title}`
       addLog(`正在分析: ${title}...`)
-      
+
       try {
         await analyzeArticle(articleId)
         successCount++
@@ -409,12 +423,14 @@ const handleBatchAnalyze = async () => {
         addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
       }
       
-      // 修正百分比计算：Arco Design a-progress 接收 0-100 的数值
+      // 严谨百分比计算：Arco Design a-progress 接收 0-100 的数值
       const rawPercent = ((i + 1) / total) * 100
-      analyzePercent.value = Math.min(100, Math.max(0, Math.round(rawPercent)))
+      analyzePercent.value = Math.min(100, Math.max(0, Math.floor(rawPercent)))
     }
   } finally {
     analyzing.value = false
+    // 确保进度条显示 100%
+    analyzePercent.value = 100
     analyzeStatus.value = failCount > 0 ? 'warning' : 'success'
     analyzeProgressText.value = `分析结束！成功: ${successCount}, 失败: ${failCount}`
     addLog(`任务统计。成功: ${successCount}, 失败: ${failCount}`)
@@ -482,8 +498,8 @@ const columns = [
     render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
       record.ai_category ? h('span', {
         style: {
-          backgroundColor: record.ai_category === '便民服务宣传' ? 'var(--color-success-light-1)' : (record.ai_category === '运营活动宣传' ? 'var(--color-warning-light-1)' : 'var(--color-fill-3)'),
-          color: record.ai_category === '便民服务宣传' ? 'var(--color-success-6)' : (record.ai_category === '运营活动宣传' ? 'var(--color-warning-6)' : 'var(--color-text-3)'),
+          backgroundColor: AI_CATEGORY_CONFIG[record.ai_category]?.tagColor || 'var(--color-fill-3)',
+          color: `var(--color-${AI_CATEGORY_CONFIG[record.ai_category]?.color || 'text-3'}-6)`,
           padding: '2px 6px',
           borderRadius: '4px',
           fontSize: '11px',

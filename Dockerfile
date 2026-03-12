@@ -17,6 +17,9 @@ ADD . .
 RUN chmod +x install.sh
 RUN chmod +x start.sh
 
-# 暴露端口
-EXPOSE 8001
-CMD ["/app/start.sh"]
+# Railway 端口配置
+ENV PORT=${PORT:-8001}
+EXPOSE $PORT
+
+# 启动命令
+CMD ["python3", "main.py", "-job", "True", "-init", "True"]
