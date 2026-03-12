@@ -177,6 +177,8 @@
             <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
               <a-option v-for="(cfg, cat) in AI_CATEGORY_CONFIG" :key="cat" :value="cat">{{ cat }}</a-option>
+              <a-option value="便民服务宣传">便民服务宣传 (旧)</a-option>
+              <a-option value="运营活动宣传">运营活动宣传 (旧)</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear style="width: 240px" />
@@ -271,6 +273,7 @@ import { Avatar } from '@/utils/constants'
 import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import http from '@/api/http'
 import { IconApps, IconAt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconThunderbolt } from '@arco-design/web-vue/es/icon'
+import { Tag as ATag } from '@arco-design/web-vue'
 import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
 import { Message, Modal } from '@arco-design/web-vue'
@@ -353,10 +356,12 @@ const analyzeStatus = ref<'normal' | 'success' | 'warning' | 'danger'>('normal')
 const logContainer = ref(null)
 
 // AI 分类配置与颜色映射
-const AI_CATEGORY_CONFIG: Record<string, { color: string, tagColor: string }> = {
-  '产品功能': { color: 'arcoblue', tagColor: 'var(--color-primary-light-1)' },
-  '运营活动': { color: 'gold', tagColor: 'var(--color-warning-light-1)' },
-  '其他': { color: 'gray', tagColor: 'var(--color-fill-3)' }
+const AI_CATEGORY_CONFIG: Record<string, { color: string }> = {
+  '产品功能': { color: 'arcoblue' },
+  '运营活动': { color: 'gold' },
+  '便民服务宣传': { color: 'arcoblue' },
+  '运营活动宣传': { color: 'gold' },
+  '其他': { color: 'gray' }
 }
 
 const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
@@ -496,18 +501,15 @@ const columns = [
     minWidth: 300,
     ellipsis: true,
     render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
-      record.ai_category ? h('span', {
+      record.ai_category ? h(ATag, {
+        color: AI_CATEGORY_CONFIG[record.ai_category]?.color || 'gray',
+        size: 'small',
         style: {
-          backgroundColor: AI_CATEGORY_CONFIG[record.ai_category]?.tagColor || 'var(--color-fill-3)',
-          color: `var(--color-${AI_CATEGORY_CONFIG[record.ai_category]?.color || 'text-3'}-6)`,
-          padding: '2px 6px',
-          borderRadius: '4px',
-          fontSize: '11px',
-          whiteSpace: 'nowrap',
-          cursor: 'help'
+          cursor: 'help',
+          flexShrink: 0
         },
         title: record.ai_summary || record.ai_category
-      }, record.ai_category) : null,
+      }, () => record.ai_category) : null,
       h('a', {
         href: issourceUrl.value ? record.url || '#' : "/views/article/" + record.id,
         title: record.title,
