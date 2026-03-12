@@ -177,8 +177,6 @@
             <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
               <a-option v-for="(cfg, cat) in AI_CATEGORY_CONFIG" :key="cat" :value="cat">{{ cat }}</a-option>
-              <a-option value="便民服务宣传">便民服务宣传 (旧)</a-option>
-              <a-option value="运营活动宣传">运营活动宣传 (旧)</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear style="width: 240px" />
@@ -359,8 +357,6 @@ const logContainer = ref(null)
 const AI_CATEGORY_CONFIG: Record<string, { color: string }> = {
   '产品功能': { color: 'arcoblue' },
   '运营活动': { color: 'gold' },
-  '便民服务宣传': { color: 'arcoblue' },
-  '运营活动宣传': { color: 'gold' },
   '其他': { color: 'gray' }
 }
 
