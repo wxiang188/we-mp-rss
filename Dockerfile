@@ -5,11 +5,12 @@ FROM  --platform=$BUILDPLATFORM ghcr.io/rachelos/base-full:latest as werss-base
 ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 # ENV PIP_INDEX_URL=https://mirrors.huaweicloud.com/repository/pypi/simple
 
-# 复制Python依赖文件
+# 复制Python依赖文件并安装
 FROM werss-base
-COPY requirements.txt .
-# 安装系统依赖
 WORKDIR /app
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 RUN echo "1.0.$(date +%Y%m%d.%H%M)">>docker_version.txt
 # 复制后端代码
 ADD ./config.example.yaml  ./config.yaml
@@ -21,5 +22,5 @@ RUN chmod +x start.sh
 ENV PORT=${PORT:-8001}
 EXPOSE $PORT
 
-# 启动命令
-CMD ["python3", "main.py", "-job", "True", "-init", "True"]
+# 启动命令 (使用 start.sh 以便初始化环境)
+CMD ["/bin/bash", "start.sh"]
