@@ -2,15 +2,8 @@ name: Publish Docker image to Docker Hub
 
 on:
   push:
-     branches:
+    branches:
       - main
-     paths:  # 仅在指定文件变化时触发（可选）
-      - 'ReadMe.md'
-      - 'README.zh-CN.md'
-      - 'core/ver.py'
-      - 'Dockerfile'
-      - 'requirements.txt'
-      - 'config.example.yaml'
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
