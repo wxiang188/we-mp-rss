@@ -16,6 +16,7 @@ import re
 from threading import Timer, Lock
 from .cookies import expire
 import json
+import base64
 from core.print import print_error,print_warning,print_info,print_success
 class Wx:
     _haslogin=False
@@ -195,9 +196,18 @@ class Wx:
     
     wait_time=1
     def QRcode(self):
+        qr_base64 = ""
+        try:
+            if os.path.exists(self.wx_login_url):
+                with open(self.wx_login_url, "rb") as f:
+                    qr_base64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
+        except Exception as e:
+            print_error(f"获取二维码Base64失败: {e}")
+
         return {
-            "code":f"/{self.wx_login_url}?t={(time.time())}",
-            "is_exists":self.GetHasCode(),
+            "code": f"/{self.wx_login_url}?t={(time.time())}",
+            "is_exists": self.GetHasCode(),
+            "base64": qr_base64
         }
     def refresh_task(self):
         try:

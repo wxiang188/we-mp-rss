@@ -112,6 +112,7 @@ class WeChatAPI:
                     return {
                         'code': f"{self.qr_code_path}?t={int(time.time())}",
                         'is_exists': os.path.exists(self.qr_code_path),
+                        'base64': self._get_qr_base64(),
                         'uuid': qr_info['uuid'],
                         'msg': '请使用微信扫描二维码登录'
                     }
@@ -127,8 +128,18 @@ class WeChatAPI:
                 return {
                     'code': None,
                     'is_exists': False,
+                    'base64': "",
                     'msg': f'获取二维码失败: {str(e)}'
                 }
+
+    def _get_qr_base64(self) -> str:
+        try:
+            if os.path.exists(self.qr_code_path):
+                with open(self.qr_code_path, "rb") as f:
+                    return f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
+        except Exception as e:
+            logger.error(f"获取二维码Base64失败: {e}")
+        return ""
 
     def _extract_qr_info(self, html_content: str) -> Optional[Dict[str, str]]:
         """
