@@ -6,7 +6,7 @@
       :show-back="true"
       @back="goBack"
     />
-    
+
     <a-card>
       <a-form
         :model="form"
@@ -28,9 +28,9 @@
             <template #upload-button>
               <div class="avatar-upload">
                 <a-avatar :size="80">
-                  <img 
-                    v-if="form.avatar" 
-                    :src="form.avatar" 
+                  <img
+                    v-if="form.avatar"
+                    :src="form.avatar"
                     alt="avatar"
                     @error="handleImageError"
                   >
@@ -43,7 +43,7 @@
             </template>
           </a-upload>
         </a-form-item>
-        
+
         <a-form-item label="用户名" field="username">
           <a-input
             v-model="form.username"
@@ -53,7 +53,7 @@
             <template #prefix><icon-user /></template>
           </a-input>
         </a-form-item>
-        
+
         <a-form-item label="昵称" field="nickname">
           <a-input
             v-model="form.nickname"
@@ -63,7 +63,7 @@
             <template #prefix><icon-user /></template>
           </a-input>
         </a-form-item>
-        
+
         <a-form-item label="邮箱" field="email">
           <a-input
             v-model="form.email"
@@ -73,7 +73,7 @@
             <template #prefix><icon-email /></template>
           </a-input>
         </a-form-item>
-        
+
         <a-form-item>
           <a-space>
             <a-button type="primary" html-type="submit" :loading="loading">
@@ -81,6 +81,38 @@
             </a-button>
             <a-button @click="resetForm">重置</a-button>
           </a-space>
+        </a-form-item>
+      </a-form>
+    </a-card>
+
+    <!-- AI 配置 -->
+    <a-card style="margin-top: 20px;">
+      <template #title>
+        <a-space>
+          <icon-settings />
+          AI 配置
+        </a-space>
+      </template>
+      <a-form
+        :model="aiConfigForm"
+        layout="vertical"
+      >
+        <a-form-item label="MiniMax API Key">
+          <a-input-password
+            v-model="aiConfigForm.apiKey"
+            placeholder="请输入 MiniMax API Key"
+            allow-clear
+          />
+          <template #help>
+            <div v-if="aiConfigForm.originalKey" style="color: var(--color-text-3);">
+            当前 Key：{{ aiConfigForm.originalKey }}
+            </div>
+          </template>
+        </a-form-item>
+        <a-form-item>
+          <a-button type="primary" :loading="aiLoading" @click="saveAiConfig">
+            保存 AI 配置
+          </a-button>
         </a-form-item>
       </a-form>
     </a-card>
@@ -92,16 +124,23 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import { getUserInfo, updateUserInfo, uploadAvatar } from '@/api/user'
+import http from '@/api/http'
 
 const router = useRouter()
 const loading = ref(false)
 const fileList = ref([])
+const aiLoading = ref(false)
 
 const form = ref({
   username: '',
   nickname: '',
   email: '',
   avatar: ''
+})
+
+const aiConfigForm = ref({
+  apiKey: '',
+  originalKey: ''
 })
 
 const rules = {
@@ -182,8 +221,49 @@ const goBack = () => {
   router.go(-1)
 }
 
+// 获取 AI 配置
+const fetchAiConfig = async () => {
+  try {
+    const res = await http.get('/wx/configs', {
+      params: { limit: 100, offset: 0 }
+    })
+    const configs = (res as any).list || []
+    const aiKeyConfig = configs.find((item: any) => item.config_key === 'minimax.api_key')
+    if (aiKeyConfig && aiKeyConfig.config_value) {
+      const key = aiKeyConfig.config_value
+      // 脱敏显示：保留前10位，后面的用*代替
+      aiConfigForm.value.originalKey = key.length > 10 ? key.substring(0, 10) + '****' + key.substring(key.length - 4) : key
+    }
+  } catch (error) {
+    console.error('获取AI配置失败:', error)
+  }
+}
+
+// 保存 AI 配置
+const saveAiConfig = async () => {
+  if (!aiConfigForm.value.apiKey) {
+    Message.warning('请输入 API Key')
+    return
+  }
+  aiLoading.value = true
+  try {
+    await http.post('/wx/configs', {
+      config_key: 'minimax.api_key',
+      config_value: aiConfigForm.value.apiKey
+    })
+    Message.success('AI 配置保存成功')
+    aiConfigForm.value.apiKey = ''
+    fetchAiConfig()
+  } catch (error) {
+    Message.error('保存失败')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchUserInfo()
+  fetchAiConfig()
 })
 </script>
 

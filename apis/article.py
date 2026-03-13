@@ -212,6 +212,33 @@ async def get_articles(
             )
         )
 
+@router.get("/ai-categories/list", summary="获取AI分类列表")
+async def get_ai_categories(
+    current_user: dict = Depends(get_current_user_or_ak)
+):
+    """获取系统中已使用的AI分类标签列表"""
+    session = DB.get_session()
+    try:
+        # 获取所有非空的 AI 分类标签
+        categories = session.query(Article.ai_category).distinct().filter(
+            Article.ai_category.isnot(None),
+            Article.ai_category != ''
+        ).all()
+        # 提取分类名称列表
+        category_list = [cat[0] for cat in categories if cat[0]]
+        # 如果没有分类，返回默认分类
+        if not category_list:
+            category_list = ['产品功能', '运营活动', '其他']
+        return success_response(data=category_list)
+    except Exception as e:
+        raise HTTPException(
+            status_code=fast_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_response(
+                code=50001,
+                message=f"获取AI分类列表失败: {str(e)}"
+            )
+        )
+
 @router.get("/{article_id}", summary="获取文章详情")
 async def get_article_detail(
     article_id: str,

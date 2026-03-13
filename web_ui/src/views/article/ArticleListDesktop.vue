@@ -113,10 +113,6 @@
                 <template #icon><icon-scan /></template>
                 刷新授权
               </a-button>
-              <a-button @click="showAiConfig">
-                <template #icon><icon-settings /></template>
-                AI配置
-              </a-button>
               <a-dropdown>
                 <a-button>
                   <template #icon>
@@ -145,7 +141,7 @@
               </a-dropdown>
               <a-button type="primary" status="success" @click="handleBatchAnalyze" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-thunderbolt /></template>
-                AI分析 <span style="font-size: 8px; opacity: 0.6;">(V16-FINAL-CLEAN)</span>
+                AI分析
               </a-button>
               <a-button type="primary" status="danger" @click="handleBatchDelete" :disabled="!selectedRowKeys.length">
                 <template #icon><icon-delete /></template>
@@ -155,9 +151,10 @@
           </template>
         </a-page-header>
 
-        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度 (V16-FINAL-CLEAN)" :footer="false" :mask-closable="false">
+        <!-- AI 分析进度弹窗 -->
+        <a-modal v-model:visible="analyzeModalVisible" title="AI 批量分析进度" :footer="false" :mask-closable="false">
           <div style="margin-bottom: 20px;">
-            <a-progress :percent="analyzePercent" :status="analyzeStatus" />
+            <a-progress :percent="clampPercent(analyzePercent)" :status="analyzeStatus" />
             <div style="margin-top: 10px; text-align: center; font-weight: bold;">{{ analyzeProgressText }}</div>
           </div>
           <div class="log-container" ref="logContainer" style="height: 200px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace;">
@@ -176,7 +173,7 @@
             <a-range-picker v-model="dateRange" style="width: 260px" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" :style="{width:'160px'}" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
-              <a-option v-for="(cfg, cat) in AI_CATEGORY_CONFIG" :key="cat" :value="cat">{{ cat }}</a-option>
+              <a-option v-for="cat in aiCategoryList" :key="cat" :value="cat">{{ cat }}</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch"
               allow-clear style="width: 240px" />
@@ -222,27 +219,6 @@
             </template>
           </a-modal>
 
-          <!-- AI 配置弹窗 -->
-          <a-modal v-model:visible="aiConfigVisible" title="AI 分析配置" @ok="handleSaveAiConfig">
-            <a-form :model="aiConfigForm" layout="vertical">
-              <a-form-item label="AI API Key" help="设置 AI API 密钥">
-                <a-input-password v-model="aiConfigForm.AI_API_KEY" placeholder="sk-..." />
-              </a-form-item>
-              <a-form-item label="API URL" help="AI 接口地址">
-                <a-input v-model="aiConfigForm.AI_API_URL" placeholder="https://api.minimax.chat/v1/text/chatcompletion_v2" />
-              </a-form-item>
-              <a-form-item label="模型名称" help="使用的模型 ID">
-                <a-input v-model="aiConfigForm.AI_MODEL" placeholder="abab6.5-chat" />
-              </a-form-item>
-              <a-form-item label="Group ID" help="Minimax 账户的 Group ID (V2接口必备)">
-                <a-input v-model="aiConfigForm.AI_GROUP_ID" placeholder="请输入 Group ID" />
-              </a-form-item>
-              <a-form-item label="Temperature" help="采样温度 (0.1 ~ 1.0)">
-                <a-input-number v-model="aiConfigForm.AI_TEMPERATURE" :min="0.1" :max="1.0" :step="0.1" />
-              </a-form-item>
-            </a-form>
-          </a-modal>
-
           <a-modal id="article-model" v-model:visible="articleModalVisible" 
             placement="left" :footer="false" :fullscreen="false" @before-close="resetScrollPosition">
             <h2 id="topreader">{{ currentArticle.title }}</h2>
@@ -272,7 +248,7 @@ import { translatePage, setCurrentLanguage } from '@/utils/translate';
 import http from '@/api/http'
 import { IconApps, IconAt, IconDelete, IconEdit, IconEye, IconRefresh, IconScan, IconWeiboCircleFill, IconWifi, IconCode, IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy, IconPlus, IconDown, IconExport, IconImport, IconShareExternal, IconThunderbolt } from '@arco-design/web-vue/es/icon'
 import { Tag as ATag } from '@arco-design/web-vue'
-import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle } from '@/api/article'
+import { getArticles, deleteArticle as deleteArticleApi, ClearArticle, ClearDuplicateArticle, getArticleDetail, toggleArticleReadStatus, analyzeArticle, getAiCategories } from '@/api/article'
 import { ExportOPML, ExportMPS, ImportMPS } from '@/api/export'
 import { Message, Modal } from '@arco-design/web-vue'
 import ExportModal from '@/components/ExportModal.vue'
@@ -281,45 +257,6 @@ import { formatDateTime, formatTimestamp } from '@/utils/date'
 import router from '@/router'
 import TextIcon from '@/components/TextIcon.vue'
 import { ProxyImage } from '@/utils/constants'
-
-const aiConfigVisible = ref(false)
-const aiConfigForm = ref({
-  AI_API_KEY: '',
-  AI_API_URL: '',
-  AI_MODEL: '',
-  AI_TEMPERATURE: 0.1,
-  AI_GROUP_ID: ''
-})
-
-const showAiConfig = async () => {
-  try {
-    const res = await http.get('/wx/configs')
-    const configs = (res as any).list || []
-    configs.forEach((item: any) => {
-      if (aiConfigForm.value.hasOwnProperty(item.config_key)) {
-        (aiConfigForm.value as any)[item.config_key] = item.config_value
-      }
-    })
-    aiConfigVisible.value = true
-  } catch (err) {
-    Message.error('获取配置失败')
-  }
-}
-
-const handleSaveAiConfig = async () => {
-  try {
-    for (const key in aiConfigForm.value) {
-      await http.post('/wx/configs', {
-        config_key: key,
-        config_value: (aiConfigForm.value as any)[key].toString()
-      })
-    }
-    Message.success('配置已保存')
-    aiConfigVisible.value = false
-  } catch (err) {
-    Message.error('保存配置失败')
-  }
-}
 
 const articles = ref([])
 const loading = ref(false)
@@ -343,6 +280,26 @@ const filterStatus = ref('')
 const mpSearchText = ref('')
 const dateRange = ref([])
 const aiCategory = ref('')
+const aiCategoryList = ref<string[]>(['产品功能', '运营活动', '其他'])
+
+// AI 分类配置与颜色映射
+const AI_CATEGORY_CONFIG: Record<string, { color: string }> = {
+  '产品功能': { color: 'green' },
+  '运营活动': { color: 'orange' },
+  '其他': { color: 'gray' }
+}
+
+// 获取分类颜色
+const getCategoryColor = (category: string) => {
+  return AI_CATEGORY_CONFIG[category]?.color || 'gray'
+}
+
+// 限制进度值在 0-1 之间（a-progress 会自动乘以 100 显示）
+const clampPercent = (value: number) => {
+  if (value < 0) return 0
+  if (value > 1) return 1
+  return value
+}
 
 // AI 分析相关
 const analyzeModalVisible = ref(false)
@@ -352,13 +309,6 @@ const analyzeProgressText = ref('')
 const analyzeLogs = ref([])
 const analyzeStatus = ref<'normal' | 'success' | 'warning' | 'danger'>('normal')
 const logContainer = ref(null)
-
-// AI 分类配置与颜色映射
-const AI_CATEGORY_CONFIG: Record<string, { color: string }> = {
-  '产品功能': { color: 'arcoblue' },
-  '运营活动': { color: 'gold' },
-  '其他': { color: 'gray' }
-}
 
 const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
   const time = new Date().toLocaleTimeString()
@@ -373,20 +323,16 @@ const addLog = (msg: string, type: 'info' | 'error' = 'info') => {
 const handleBatchAnalyze = async () => {
   if (selectedRowKeys.value.length === 0 || analyzing.value) return
 
-  console.log("DEBUG: handleBatchAnalyze V5-FIX triggered. Total:", selectedRowKeys.value.length)
   analyzeModalVisible.value = true
   analyzing.value = true
   analyzePercent.value = 0
   analyzeLogs.value = []
   analyzeStatus.value = 'normal'
 
-  // 冻结当前选中的 ID，防止循环过程中被界面修改影响计算
   const taskIds = [...selectedRowKeys.value]
-  let total = taskIds.length
+  const total = taskIds.length
 
-  // 安全检查：确保 total 有效
   if (total <= 0) {
-    analyzePercent.value = 100
     analyzing.value = false
     analyzeStatus.value = 'warning'
     analyzeProgressText.value = '没有可分析的文章'
@@ -401,7 +347,6 @@ const handleBatchAnalyze = async () => {
 
   try {
     for (let i = 0; i < total; i++) {
-      // 检查分析任务是否因关闭弹窗而中断
       if (!analyzeModalVisible.value) {
         addLog("任务被用户中断", 'error')
         break
@@ -411,7 +356,7 @@ const handleBatchAnalyze = async () => {
       const article = articles.value.find(a => a.id === articleId)
       const title = article ? article.title : articleId
 
-      analyzeProgressText.value = `正在分析 (${i + 1}/${total}): ${title}`
+      analyzeProgressText.value = `正在分析 (${i + 1}/${total})`
       addLog(`正在分析: ${title}...`)
 
       try {
@@ -423,20 +368,18 @@ const handleBatchAnalyze = async () => {
         const errorMsg = err.response?.data?.message || err.message || '调用 API 失败'
         addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
       }
-      
-      // 严谨百分比计算：Arco Design a-progress 接收 0-100 的数值
-      const rawPercent = ((i + 1) / total) * 100
-      analyzePercent.value = Math.min(100, Math.max(0, Math.floor(rawPercent)))
+
+      // 计算进度：已完成数/总数 (0-1 之间的小数，a-progress 会自动乘以 100)
+      const current = i + 1
+      const percent = current / total
+      analyzePercent.value = percent
     }
   } finally {
     analyzing.value = false
-    // 确保进度条显示 100%
-    analyzePercent.value = 100
     analyzeStatus.value = failCount > 0 ? 'warning' : 'success'
     analyzeProgressText.value = `分析结束！成功: ${successCount}, 失败: ${failCount}`
     addLog(`任务统计。成功: ${successCount}, 失败: ${failCount}`)
-    
-    // 任务结束后清空选择并刷新
+
     selectedRowKeys.value = []
     fetchArticles()
   }
@@ -498,7 +441,7 @@ const columns = [
     ellipsis: true,
     render: ({ record }) => h('div', { style: 'display:flex; align-items:center; gap:8px; overflow:hidden;' }, [
       record.ai_category ? h(ATag, {
-        color: AI_CATEGORY_CONFIG[record.ai_category]?.color || 'gray',
+        color: getCategoryColor(record.ai_category),
         size: 'small',
         style: {
           cursor: 'help',
@@ -950,6 +893,14 @@ const handleExportShow = async () => {
 onMounted(() => {
   console.log('组件挂载，开始获取数据')
   initIssourceUrl() // 初始化 issourceUrl 值
+  // 获取 AI 分类列表
+  getAiCategories().then((res: any) => {
+    if (res.code === 200 && res.data && res.data.length > 0) {
+      aiCategoryList.value = res.data
+    }
+  }).catch(err => {
+    console.error('获取AI分类列表失败:', err)
+  })
   fetchMpList().then(() => {
     console.log('公众号列表获取完成')
     fetchArticles()

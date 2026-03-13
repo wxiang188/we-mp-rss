@@ -164,3 +164,11 @@ export const analyzeArticle = (id: string | number) => {
   return http.post<{ code: number, data: any }>(`/wx/articles/${id}/analyze`)
 }
 
+/**
+ * 获取AI分类列表
+ * @returns AI分类标签列表
+ */
+export const getAiCategories = () => {
+  return http.get<{ code: number, data: string[] }>('/wx/articles/ai-categories/list')
+}
+

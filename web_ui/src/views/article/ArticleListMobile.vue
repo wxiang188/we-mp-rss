@@ -20,9 +20,7 @@
             <a-range-picker v-model="dateRange" style="width: 100%" @change="handleSearch" allow-clear value-format="YYYY-MM-DD" />
             <a-select v-model="aiCategory" style="width: 100%" placeholder="AI 分类" allow-clear @change="handleSearch">
               <a-option value="">全部</a-option>
-              <a-option value="产品功能">产品功能</a-option>
-              <a-option value="运营活动">运营活动</a-option>
-              <a-option value="其他">其他</a-option>
+              <a-option v-for="cat in aiCategoryList" :key="cat" :value="cat">{{ cat }}</a-option>
             </a-select>
             <a-input-search v-model="searchText" placeholder="搜索文章标题" @search="handleSearch" @keyup.enter="handleSearch" allow-clear />
           </div>
@@ -51,7 +49,7 @@
                           </a-typography-text>
                           <div v-if="item.ai_category" style="margin-top:2px; display: flex; flex-direction: column; gap: 2px;">
                             <div style="display: flex; align-items: center; gap: 4px;">
-                              <a-tag :color="item.ai_category === '产品功能' ? 'arcoblue' : (item.ai_category === '运营活动' ? 'gold' : 'gray')" size="small">
+                              <a-tag :color="getCategoryColor(item.ai_category)" size="small">
                                 {{ item.ai_category }}
                               </a-tag>
                               <span style="font-size:11px; color:var(--color-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
@@ -178,7 +176,7 @@ import { formatDateTime,formatTimestamp } from '@/utils/date'
 import { Avatar } from '@/utils/constants'
 import { ref, onMounted, computed } from 'vue'
 import { IconCheck, IconClose, IconStop, IconPlayArrow, IconCopy } from '@arco-design/web-vue/es/icon'
-import { getArticles, getArticleDetail,getPrevArticle,getNextArticle,toggleArticleReadStatus } from '@/api/article'
+import { getArticles, getArticleDetail,getPrevArticle,getNextArticle,toggleArticleReadStatus, getAiCategories } from '@/api/article'
 import { getSubscriptions, toggleMpStatus as toggleMpStatusApi } from '@/api/subscription'
 import { Message } from '@arco-design/web-vue'
 import { ProxyImage } from '@/utils/constants'
@@ -192,6 +190,17 @@ const mpListVisible = ref(false)
 const mpFilterType = ref('active') // 'active' | 'disabled' | 'all'
 const dateRange = ref([])
 const aiCategory = ref('')
+const aiCategoryList = ref<string[]>(['产品功能', '运营活动', '其他'])
+
+// 获取分类颜色
+const getCategoryColor = (category: string) => {
+  const colorMap: Record<string, string> = {
+    '产品功能': 'green',
+    '运营活动': 'orange',
+    '其他': 'gray'
+  }
+  return colorMap[category] || 'gray'
+}
 
 const pagination = ref({
   current: 1,
@@ -441,6 +450,14 @@ const copyMpId = async (mpId: string) => {
 }
 
 onMounted(() => {
+  // 获取 AI 分类列表
+  getAiCategories().then((res: any) => {
+    if (res.code === 200 && res.data && res.data.length > 0) {
+      aiCategoryList.value = res.data
+    }
+  }).catch(err => {
+    console.error('获取AI分类列表失败:', err)
+  })
   fetchMpList()
   fetchArticles()
 })
