@@ -41,9 +41,6 @@
                         <a-tag :color="getCategoryColor(item.ai_category)" size="small">
                           {{ item.ai_category }}
                         </a-tag>
-                        <span style="font-size:11px; color:var(--color-text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                          {{ item.ai_reason }}
-                        </span>
                       </div>
                       <div style="font-size:12px; color:var(--color-text-3); line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;">
                         {{ item.ai_summary }}

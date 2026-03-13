@@ -494,14 +494,6 @@ const columns = [
     )
   },
   {
-    title: 'AI分类理由',
-    dataIndex: 'ai_reason',
-    width: '200',
-    ellipsis: true,
-    tooltip: true,
-    render: ({ record }) => h('span', { style: { fontSize: '12px', color: 'var(--color-text-2)' } }, record.ai_reason || '-')
-  },
-  {
     title: 'AI总结',
     dataIndex: 'ai_summary',
     width: '250',

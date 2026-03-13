@@ -23,7 +23,6 @@ export interface Article {
   created_at: string
   is_read?: number
   ai_category?: string
-  ai_reason?: string
   ai_summary?: string
 }
 
