@@ -155,7 +155,7 @@ def export_md_to_doc(mp_id:str=None,doc_id:list=None,page_size:int=10,page_count
     csv_file = None
     writer = None
     if export_csv:
-        csv_file = open(csv_filename, "w", newline="", encoding="utf-8")
+        csv_file = open(csv_filename, "w", newline="", encoding="utf-8-sig")
         writer = csv.writer(csv_file)
         writer.writerow(["标题", "链接", "发布时间"])
     
