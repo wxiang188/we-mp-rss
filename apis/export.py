@@ -53,7 +53,7 @@ async def export_mps(
         # 返回文件下载
         return FileResponse(
             temp_file,
-            media_type="text/csv",
+            media_type="text/csv; charset=utf-8-sig",
             filename="公众号列表.csv",
             background=BackgroundTask(lambda: os.remove(temp_file))
         )
@@ -252,7 +252,7 @@ async def export_tags(
 
         return FileResponse(
             temp_file,
-            media_type="text/csv",
+            media_type="text/csv; charset=utf-8-sig",
             filename="标签列表.csv",
             background=BackgroundTask(lambda: os.remove(temp_file))
         )
