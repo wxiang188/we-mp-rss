@@ -307,24 +307,40 @@ class WXArticleFetcher:
                 raise Exception("违规无法查看")
             
 
-            # 获取标题
-            title = page.locator('meta[property="og:title"]').get_attribute("content")
-            #获取作者
-            author = page.locator('meta[property="og:article:author"]').get_attribute("content")
-            #获取描述
-            description = page.locator('meta[property="og:description"]').get_attribute("content")
-            #获取题图
-            topic_image = page.locator('meta[property="twitter:image"]').get_attribute("content")
+            # 获取元数据 (增加异常捕获和备选正则提取)
+            def safe_get_meta(prop):
+                try:
+                    return page.locator(f'meta[property="{prop}"]').get_attribute("content", timeout=3000)
+                except:
+                    # 正则兜底
+                    import re
+                    content = page.content()
+                    match = re.search(f'property="{prop}" content="([^"]+)"', content)
+                    return match.group(1) if match else ""
 
-            self.export_to_pdf(f"./data/{title}.pdf")
-            if title=="":
+            title = safe_get_meta("og:title")
+            author = safe_get_meta("og:article:author")
+            description = safe_get_meta("og:description")
+            topic_image = safe_get_meta("twitter:image")
+
+            # 导出 PDF (可选)
+            if title:
+                self.export_to_pdf(f"./data/{title}.pdf")
+            else:
                 title = page.evaluate('() => document.title')
             
-          
-         
-            # 获取正文内容和图片
-            content_element = page.locator("#js_content")
-            content = content_element.inner_html()
+            # 获取正文内容
+            try:
+                content_element = page.locator("#js_content")
+                content_element.wait_for(state="attached", timeout=5000)
+                content = content_element.inner_html()
+            except:
+                # 尝试备选正文容器
+                try:
+                    content_element = page.locator("#js_article")
+                    content = content_element.inner_html()
+                except:
+                    content = ""
 
             #获取图集内容 
             if content=="":
@@ -372,16 +388,44 @@ class WXArticleFetcher:
                 page = self.page
                 # 等待关键元素加载
                 # 使用更精确的选择器避免匹配多个元素
-                ele_logo = page.locator('#js_like_profile_bar .wx_follow_avatar img')
-                # 获取<img>标签的src属性
-                logo_src = ele_logo.get_attribute('src')
+                # 获取 Logo (增加备选选择器)
+                logo_selectors = [
+                    '#js_like_profile_bar .wx_follow_avatar img',
+                    '.profile_avatar img',
+                    '#js_profile_qrcode img',
+                    'img.avatar'
+                ]
+                logo_src = ""
+                for sel in logo_selectors:
+                    try:
+                        ele = page.locator(sel)
+                        if ele.count() > 0:
+                            logo_src = ele.get_attribute('src', timeout=2000)
+                            if logo_src: break
+                    except: continue
 
                 # 获取公众号名称
-                title = page.evaluate('() => $("#js_wx_follow_nickname").text()')
+                name_selectors = [
+                    '#js_wx_follow_nickname',
+                    '.profile_nickname',
+                    '.account_nickname'
+                ]
+                mp_name = ""
+                for sel in name_selectors:
+                    try:
+                        ele = page.locator(sel)
+                        if ele.count() > 0:
+                            mp_name = ele.text_content(timeout=2000).strip()
+                            if mp_name: break
+                    except: continue
+                
+                if not mp_name:
+                    mp_name = page.evaluate('() => $("#js_wx_follow_nickname").text()')
+
                 biz = page.evaluate('() => window.biz')
                 info["mp_info"]={
-                    "mp_name":title,
-                    "logo":logo_src,
+                    "mp_name": mp_name,
+                    "logo": logo_src,
                     "biz": biz or self.extract_biz_from_source(url, page), 
                 }
                 info["mp_id"]= "MP_WXS_"+base64.b64decode(info["mp_info"]["biz"]).decode("utf-8")
