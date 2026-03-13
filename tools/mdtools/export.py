@@ -9,8 +9,8 @@ import os
 from core.print import print_success,print_error
 from jobs.notice import sys_notice
 
-def process_single_article(art, add_title, remove_images, remove_links, export_md, 
-                          export_docx, export_json, export_csv, export_pdf, 
+def process_single_article(art, session, add_title, remove_images, remove_links, export_md,
+                          export_docx, export_json, export_csv, export_pdf,
                           docx_path, writer):
     """
     处理单篇文章的导出逻辑
@@ -84,7 +84,25 @@ def process_single_article(art, add_title, remove_images, remove_links, export_m
                 
             # 纪录导出文章列表（仅在需要时）
             if export_csv and writer:
-                writer.writerow([art.title, art.url, datetime.fromtimestamp(art.publish_time).strftime("%Y-%m-%d %H:%M:%S")])
+                # 获取公众号名称
+                mp_name = art.mp_id
+                if session and art.mp_id:
+                    from core.models.feed import Feed
+                    feed = session.query(Feed).filter(Feed.id == art.mp_id).first()
+                    if feed:
+                        mp_name = feed.mp_name
+                # 获取AI标签
+                ai_tags = art.ai_tags or ""
+                if art.ai_category:
+                    ai_tags = art.ai_category + (" | " + ai_tags if ai_tags else "")
+                writer.writerow([
+                    art.title,
+                    mp_name,
+                    ai_tags,
+                    art.ai_summary or "",
+                    datetime.fromtimestamp(art.publish_time).strftime("%Y-%m-%d %H:%M:%S"),
+                    art.url
+                ])
             
             exported_files = []
             if export_json: exported_files.append("JSON")
@@ -134,8 +152,8 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
             break
             
         for art in arts:
-            if process_single_article(art, add_title, remove_images, remove_links, 
-                                    export_md, export_docx, export_json, export_csv, 
+            if process_single_article(art, session, add_title, remove_images, remove_links,
+                                    export_md, export_docx, export_json, export_csv,
                                     export_pdf, docx_path, writer):
                 record_count += 1
     
@@ -157,7 +175,7 @@ def export_md_to_doc(mp_id:str=None,doc_id:list=None,page_size:int=10,page_count
     if export_csv:
         csv_file = open(csv_filename, "w", newline="", encoding="utf-8-sig")
         writer = csv.writer(csv_file)
-        writer.writerow(["标题", "链接", "发布时间"])
+        writer.writerow(["文章标题", "所属公众号", "分类标签", "AI总结", "发布时间", "原文链接"])
     
     # 调用独立的文章处理函数
     record_count = process_articles(
