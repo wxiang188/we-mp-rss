@@ -136,7 +136,9 @@ async def get_classify_status(current_user=Depends(get_current_user)):
     # 计算百分比，确保不超过 100%
     percent = 0
     if classify_status["total"] > 0:
-        percent = min(100, round(classify_status["processed"] / classify_status["total"] * 100))
+        # Arco Design Progress 百分比接收 0-1 之间的小数
+        percent = round(classify_status["processed"] / classify_status["total"], 4)
+        percent = min(1.0, max(0.0, percent))
 
     return {
         "code": 0,
@@ -146,5 +148,5 @@ async def get_classify_status(current_user=Depends(get_current_user)):
         "logs": classify_status["logs"][-20:],
         "total": classify_status["total"],
         "processed": classify_status["processed"],
-        "percent": percent  # 新增：返回计算好的百分比
+        "percent": percent
     }
