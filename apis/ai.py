@@ -133,12 +133,12 @@ async def start_ai_classify(current_user=Depends(get_current_user)):
 @router.get("/classify/status", summary="获取AI分类状态")
 async def get_classify_status(current_user=Depends(get_current_user)):
     """获取AI分类任务状态"""
-    # 计算百分比，确保不超过 100%
+    # 计算百分比，确保不超过 100%，四舍五入取整数
     percent = 0
     if classify_status["total"] > 0:
-        # Arco Design Progress 百分比接收 0-1 之间的小数
-        percent = round(classify_status["processed"] / classify_status["total"], 4)
-        percent = min(1.0, max(0.0, percent))
+        # 四舍五入取整数 (0-100)
+        percent = round(classify_status["processed"] / classify_status["total"] * 100)
+        percent = min(100, max(0, percent))
 
     return {
         "code": 0,

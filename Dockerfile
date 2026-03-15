@@ -1,5 +1,5 @@
 # 第一阶段初：前端构建 (Frontend Builder)
-FROM node:18-alpine as frontend-builder
+FROM docker.1ms.run/node:18-alpine as frontend-builder
 WORKDIR /app
 
 # 1. 复制前端源码

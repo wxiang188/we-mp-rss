@@ -369,10 +369,10 @@ const handleBatchAnalyze = async () => {
         addLog(`❌ 分析失败: ${title} (${errorMsg})`, 'error')
       }
 
-      // 计算进度：已完成数/总数 (0-1 之间的小数，a-progress 会自动乘以 100)
+      // 计算进度：已完成数/总数，四舍五入取整数 (0-100)
       const current = i + 1
-      const percent = current / total
-      analyzePercent.value = percent
+      const percent = Math.round((current / total) * 100)
+      analyzePercent.value = percent / 100  // 转换为 0-1 给 a-progress
     }
   } finally {
     analyzing.value = false

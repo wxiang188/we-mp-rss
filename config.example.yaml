@@ -171,4 +171,4 @@ cascade:
   
 minimax:
   # MiniMax API Key，优先从环境变量 MINIMAX_API_KEY 获取
-  api_key: "${MINIMAX_API_KEY}"
+  api_key: "${MINIMAX_API_KEY:-}"

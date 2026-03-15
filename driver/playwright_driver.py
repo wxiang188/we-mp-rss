@@ -11,8 +11,17 @@ from socket import timeout
 
 from core.print import print_error
 
-# 设置环境变量
-browsers_name = os.getenv("BROWSER_TYPE", "firefox")
+# 设置环境变量，优先从环境变量读取，其次从配置文件读取
+# 优先使用环境变量 BROWSER_TYPE
+browsers_name = os.getenv("BROWSER_TYPE")
+# 如果环境变量没有设置，则从配置文件读取
+if not browsers_name:
+    from core.config import cfg
+    browsers_name = cfg.get("gather.browser_type", "chromium")
+# 默认使用 chromium
+if not browsers_name:
+    browsers_name = "chromium"
+
 browsers_path = os.getenv("PLAYWRIGHT_BROWSERS_PATH", "")
 os.environ['PLAYWRIGHT_BROWSERS_PATH'] = browsers_path
 
