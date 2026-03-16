@@ -56,9 +56,9 @@ const routes = [
         path: 'configs',
         name: 'ConfigList',
         component: ConfigList,
-        meta: { 
+        meta: {
           requiresAuth: true,
-          permissions: ['config:view'] 
+          permissions: ['config:view']
         }
       },
       {

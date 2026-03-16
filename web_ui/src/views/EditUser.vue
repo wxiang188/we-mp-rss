@@ -85,51 +85,96 @@
       </a-form>
     </a-card>
 
-    <!-- AI 配置 -->
+    <!-- AI 配置 - 多模型列表 -->
     <a-card style="margin-top: 20px;">
       <template #title>
         <a-space>
           <icon-settings />
-          AI 配置
+          AI 模型配置
         </a-space>
       </template>
-      <a-form
-        :model="aiConfigForm"
-        layout="vertical"
-      >
-        <a-form-item label="MiniMax API Key">
-          <a-input-password
-            v-model="aiConfigForm.apiKey"
-            placeholder="请输入 MiniMax API Key"
-            allow-clear
-          />
-          <template #help>
-            <div v-if="aiConfigForm.originalKey" style="color: var(--color-text-3);">
-            当前 Key：{{ aiConfigForm.originalKey }}
+
+      <div class="model-list">
+        <div
+          v-for="model in modelList"
+          :key="model.id"
+          class="model-card"
+          :class="{ 'is-active': model.isActive }"
+        >
+          <!-- 模型卡片头部 -->
+          <div class="model-card-header">
+            <div class="model-name">
+              <span>{{ model.modelName }}</span>
+              <a-tag v-if="model.isActive" color="green">当前生效</a-tag>
             </div>
-          </template>
-        </a-form-item>
-        <a-form-item>
-          <a-button type="primary" :loading="aiLoading" @click="saveAiConfig">
-            保存 AI 配置
-          </a-button>
-        </a-form-item>
-      </a-form>
+            <a-switch
+              v-model="model.isActive"
+              checked-color="#165dff"
+              @change="(checked: boolean) => handleModelActiveChange(model.id, checked)"
+            />
+          </div>
+
+          <!-- API Key 输入 -->
+          <div class="model-card-body">
+            <a-form-item label="API Key">
+              <a-input
+                v-model="model.apiKey"
+                :type="showKeys[model.id] ? 'text' : 'password'"
+                placeholder="请输入 API Key"
+                allow-clear
+                @focus="editingModelId = model.id"
+                @blur="editingModelId = null"
+              >
+                <template #suffix>
+                  <a-button
+                    type="text"
+                    size="mini"
+                    @click="toggleShowKey(model.id)"
+                  >
+                    <icon-eye v-if="showKeys[model.id]" />
+                    <icon-eye-invisible v-else />
+                  </a-button>
+                </template>
+              </a-input>
+            </a-form-item>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全局保存按钮 -->
+      <a-form-item class="save-button-wrapper">
+        <a-button type="primary" :loading="aiLoading" @click="saveAiConfig">
+          保存 AI 配置
+        </a-button>
+      </a-form-item>
     </a-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import { getUserInfo, updateUserInfo, uploadAvatar } from '@/api/user'
 import http from '@/api/http'
 
+// 模型数据类型
+interface ModelConfig {
+  id: string
+  modelName: string
+  apiKey: string
+  originalKey: string
+  isActive: boolean
+  configKey: string
+  enabledKey: string
+}
+
 const router = useRouter()
 const loading = ref(false)
 const fileList = ref([])
 const aiLoading = ref(false)
+const editingModelId = ref<string | null>(null)
+const showKeys = reactive<Record<string, boolean>>({})
 
 const form = ref({
   username: '',
@@ -138,10 +183,27 @@ const form = ref({
   avatar: ''
 })
 
-const aiConfigForm = ref({
-  apiKey: '',
-  originalKey: ''
-})
+// 模型列表 - 初始状态
+const modelList = ref<ModelConfig[]>([
+  {
+    id: 'minimax',
+    modelName: 'MiniMax',
+    apiKey: '',
+    originalKey: '',
+    isActive: true,
+    configKey: 'minimax.api_key',
+    enabledKey: 'minimax.enabled'
+  },
+  {
+    id: 'deepseek',
+    modelName: 'DeepSeek',
+    apiKey: '',
+    originalKey: '',
+    isActive: false,
+    configKey: 'deepseek.api_key',
+    enabledKey: 'deepseek.enabled'
+  }
+])
 
 const rules = {
   username: [{ required: true, message: '请输入用户名' }],
@@ -221,6 +283,30 @@ const goBack = () => {
   router.go(-1)
 }
 
+// 脱敏显示 API Key
+const maskKey = (key: string): string => {
+  if (!key) return ''
+  if (key.length < 8) return '****'
+  return key.slice(0, 8) + '****' + key.slice(-4)
+}
+
+// 切换显示 API Key
+const toggleShowKey = (modelId: string) => {
+  showKeys[modelId] = !showKeys[modelId]
+}
+
+// 切换模型启用状态（互斥逻辑）
+const handleModelActiveChange = (modelId: string, checked: boolean) => {
+  if (checked) {
+    // 启用当前模型时，禁用其他所有模型
+    modelList.value.forEach(m => {
+      if (m.id !== modelId) {
+        m.isActive = false
+      }
+    })
+  }
+}
+
 // 获取 AI 配置
 const fetchAiConfig = async () => {
   try {
@@ -228,11 +314,21 @@ const fetchAiConfig = async () => {
       params: { limit: 100, offset: 0 }
     })
     const configs = (res as any).list || []
-    const aiKeyConfig = configs.find((item: any) => item.config_key === 'minimax.api_key')
-    if (aiKeyConfig && aiKeyConfig.config_value) {
-      const key = aiKeyConfig.config_value
-      // 脱敏显示：保留前10位，后面的用*代替
-      aiConfigForm.value.originalKey = key.length > 10 ? key.substring(0, 10) + '****' + key.substring(key.length - 4) : key
+
+    // 遍历模型列表获取配置
+    for (const model of modelList.value) {
+      // 获取 API Key
+      const keyConfig = configs.find((item: any) => item.config_key === model.configKey)
+      if (keyConfig && keyConfig.config_value) {
+        model.originalKey = keyConfig.config_value
+        model.apiKey = keyConfig.config_value // 同步到 apiKey 用于显示和编辑
+      }
+
+      // 获取启用状态
+      const enabledConfig = configs.find((item: any) => item.config_key === model.enabledKey)
+      if (enabledConfig && enabledConfig.config_value) {
+        model.isActive = enabledConfig.config_value === 'true'
+      }
     }
   } catch (error) {
     console.error('获取AI配置失败:', error)
@@ -241,18 +337,40 @@ const fetchAiConfig = async () => {
 
 // 保存 AI 配置
 const saveAiConfig = async () => {
-  if (!aiConfigForm.value.apiKey) {
-    Message.warning('请输入 API Key')
+  // 检查是否有启用的模型且配置了 API Key
+  const activeModel = modelList.value.find(m => m.isActive)
+  if (!activeModel) {
+    Message.warning('请至少启用一个模型')
     return
   }
+
+  if (!activeModel.apiKey && !activeModel.originalKey) {
+    Message.warning(`请为 ${activeModel.modelName} 配置 API Key`)
+    return
+  }
+
   aiLoading.value = true
   try {
-    await http.post('/wx/configs', {
-      config_key: 'minimax.api_key',
-      config_value: aiConfigForm.value.apiKey
-    })
+    // 保存每个模型的配置
+    for (const model of modelList.value) {
+      // 保存 API Key（如果有新输入）
+      if (model.apiKey) {
+        await http.post('/wx/configs', {
+          config_key: model.configKey,
+          config_value: model.apiKey
+        })
+        model.originalKey = model.apiKey
+        model.apiKey = '' // 清空输入框
+      }
+
+      // 保存启用状态
+      await http.post('/wx/configs', {
+        config_key: model.enabledKey,
+        config_value: model.isActive ? 'true' : 'false'
+      })
+    }
+
     Message.success('AI 配置保存成功')
-    aiConfigForm.value.apiKey = ''
     fetchAiConfig()
   } catch (error) {
     Message.error('保存失败')
@@ -302,5 +420,54 @@ onMounted(() => {
 
 .arco-form-item {
   margin-bottom: 20px;
+}
+
+/* AI 模型列表样式 */
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.model-card {
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.model-card:hover {
+  border-color: var(--color-primary-3);
+}
+
+.model-card.is-active {
+  border-color: #165dff;
+  background-color: rgba(22, 93, 255, 0.05);
+}
+
+.model-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.model-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.model-card-body {
+  padding: 0 4px;
+}
+
+.save-button-wrapper {
+  margin-top: 24px;
 }
 </style>

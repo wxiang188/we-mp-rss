@@ -285,16 +285,16 @@ async def analyze_article_manually(
                     message="文章不存在"
                 )
             )
-        
+
         from core.ai import analyze_article
         ai_res = analyze_article(article.title, article.content_html or article.content or article.description)
-        
+
         # 更新数据库
         article.ai_category = ai_res.get('category', '其他')
         article.ai_reason = ai_res.get('reason', '')
         article.ai_summary = ai_res.get('summary', '')
         session.commit()
-        
+
         return success_response({
             "message": f"文章《{article.title}》分析完成",
             "category": article.ai_category,
